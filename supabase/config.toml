@@ -1,1 +1,19 @@
+
 project_id = "sfsdfdcdethqjwtjrwpz"
+[api]
+enabled = true
+port = 54321
+[db]
+port = 54322
+[studio]
+port = 54323
+[inbucket]
+port = 54324
+[storage]
+port = 54325
+[functions]
+port = 54326
+[functions.get-weather]
+verify_jwt = false
+[functions.chat-with-ai]
+verify_jwt = false
