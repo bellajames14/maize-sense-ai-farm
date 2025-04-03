@@ -6,6 +6,8 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 export const WeatherInsights = () => {
   const [location, setLocation] = useState("Lagos, Nigeria");
@@ -17,26 +19,40 @@ export const WeatherInsights = () => {
     icon: string;
     windSpeed: number;
     rainfall: number;
+    location?: string;
+    country?: string;
   } | null>(null);
+  const { toast } = useToast();
 
   const fetchWeatherData = async () => {
+    if (!location.trim()) {
+      toast({
+        title: "Location required",
+        description: "Please enter a valid location",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     
-    // Mock weather data - in production, this would come from OpenWeather API
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setWeather({
-        temperature: 28,
-        humidity: 75,
-        condition: "Partly Cloudy",
-        icon: "partly_cloudy",
-        windSpeed: 12,
-        rainfall: 0.5
+      const { data, error } = await supabase.functions.invoke('get-weather', {
+        body: { location },
       });
+      
+      if (error) {
+        throw error;
+      }
+      
+      setWeather(data);
     } catch (error) {
       console.error("Error fetching weather data:", error);
+      toast({
+        title: "Error fetching weather data",
+        description: error.message || "Could not get weather for this location. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -45,6 +61,23 @@ export const WeatherInsights = () => {
   useEffect(() => {
     fetchWeatherData();
   }, []);
+
+  // Map OpenWeather condition to appropriate icons from Lucide
+  const getWeatherIcon = (condition: string) => {
+    switch (condition.toLowerCase()) {
+      case 'clear':
+        return <Sun className="h-14 w-14 text-yellow-500" />;
+      case 'clouds':
+        return <Cloud className="h-14 w-14 text-gray-500" />;
+      case 'rain':
+      case 'drizzle':
+        return <CloudRain className="h-14 w-14 text-blue-500" />;
+      case 'thunderstorm':
+        return <AlertTriangle className="h-14 w-14 text-yellow-600" />;
+      default:
+        return <Cloud className="h-14 w-14 text-gray-500" />;
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -77,8 +110,14 @@ export const WeatherInsights = () => {
             </div>
           ) : weather ? (
             <div className="flex flex-col items-center py-4">
+              <div className="mb-4">
+                {getWeatherIcon(weather.condition)}
+              </div>
               <div className="text-4xl font-bold mb-2">{weather.temperature}°C</div>
               <div className="text-lg text-muted-foreground mb-4">{weather.condition}</div>
+              <div className="text-sm text-muted-foreground mb-4">
+                {weather.location}, {weather.country}
+              </div>
               <div className="grid grid-cols-2 gap-4 w-full">
                 <div className="flex items-center">
                   <Droplets className="h-5 w-5 mr-2 text-blue-500" />
@@ -93,8 +132,8 @@ export const WeatherInsights = () => {
                   <span>{weather.rainfall} mm Rain</span>
                 </div>
                 <div className="flex items-center">
-                  <Sun className="h-5 w-5 mr-2 text-yellow-500" />
-                  <span>Moderate UV</span>
+                  <Thermometer className="h-5 w-5 mr-2 text-red-500" />
+                  <span>Feels like {weather.temperature}°C</span>
                 </div>
               </div>
             </div>
@@ -114,53 +153,63 @@ export const WeatherInsights = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Weather Alert</AlertTitle>
-            <AlertDescription>
-              High humidity levels may increase risk of fungal diseases. Monitor your crops closely.
-            </AlertDescription>
-          </Alert>
+          {weather && (
+            <>
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Weather Alert</AlertTitle>
+                <AlertDescription>
+                  {weather.humidity > 70 
+                    ? "High humidity levels may increase risk of fungal diseases. Monitor your crops closely."
+                    : weather.temperature > 30
+                    ? "High temperatures may stress plants. Ensure adequate irrigation."
+                    : "Current weather conditions are favorable for maize growth."}
+                </AlertDescription>
+              </Alert>
 
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium text-lg">Irrigation Recommendations</h3>
-              <div className="bg-muted rounded-lg p-3 mt-2">
-                <p>With the recent rainfall of 0.5mm and high humidity (75%), adjust your irrigation schedule:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Reduce irrigation by 30% for the next 48 hours</li>
-                  <li>Monitor soil moisture levels closely</li>
-                  <li>Water early in the morning to reduce evaporation and fungal growth</li>
-                </ul>
-              </div>
-            </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium text-lg">Irrigation Recommendations</h3>
+                  <div className="bg-muted rounded-lg p-3 mt-2">
+                    <p>With the recent rainfall of {weather.rainfall}mm and humidity at {weather.humidity}%, adjust your irrigation schedule:</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      {weather.rainfall > 0 
+                        ? <li>Reduce irrigation by 30% for the next 48 hours</li>
+                        : <li>Maintain regular irrigation schedule</li>}
+                      <li>Monitor soil moisture levels closely</li>
+                      <li>Water early in the morning to reduce evaporation and fungal growth</li>
+                    </ul>
+                  </div>
+                </div>
 
-            <div>
-              <h3 className="font-medium text-lg">Disease Prevention</h3>
-              <div className="bg-muted rounded-lg p-3 mt-2">
-                <p>Current conditions are favorable for fungal diseases like:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Gray Leaf Spot</li>
-                  <li>Northern Corn Leaf Blight</li>
-                  <li>Common Rust</li>
-                </ul>
-                <p className="mt-2">Consider preventative fungicide application if these diseases have been an issue previously.</p>
-              </div>
-            </div>
+                <div>
+                  <h3 className="font-medium text-lg">Disease Prevention</h3>
+                  <div className="bg-muted rounded-lg p-3 mt-2">
+                    <p>{weather.humidity > 70 ? "Current conditions are favorable for fungal diseases like:" : "Watch for these common diseases:"}</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>Gray Leaf Spot</li>
+                      <li>Northern Corn Leaf Blight</li>
+                      <li>Common Rust</li>
+                    </ul>
+                    <p className="mt-2">{weather.humidity > 70 ? "Consider preventative fungicide application if these diseases have been an issue previously." : "Maintain regular monitoring of your crops."}</p>
+                  </div>
+                </div>
 
-            <div>
-              <h3 className="font-medium text-lg">Pest Management</h3>
-              <div className="bg-muted rounded-lg p-3 mt-2">
-                <p>Warm and humid conditions are ideal for:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Fall Armyworm</li>
-                  <li>Corn Earworm</li>
-                  <li>Aphids</li>
-                </ul>
-                <p className="mt-2">Monitor your maize plants for these pests and consider appropriate control measures if detected.</p>
+                <div>
+                  <h3 className="font-medium text-lg">Pest Management</h3>
+                  <div className="bg-muted rounded-lg p-3 mt-2">
+                    <p>{weather.temperature > 25 ? "Warm conditions are ideal for:" : "Keep an eye out for these pests:"}</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>Fall Armyworm</li>
+                      <li>Corn Earworm</li>
+                      <li>Aphids</li>
+                    </ul>
+                    <p className="mt-2">Monitor your maize plants for these pests and consider appropriate control measures if detected.</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </CardContent>
         <CardFooter>
           <Button className="bg-leaf-700 hover:bg-leaf-800">
