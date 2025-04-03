@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { FormEvent, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
@@ -16,28 +17,35 @@ const SignUp = () => {
   const [language, setLanguage] = useState("english");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { signUp } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Mock registration - replace with real auth in the future
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Show success toast
-      toast({
-        title: "Account created!",
-        description: "You have successfully created an account.",
+      const { error } = await signUp(email, password, {
+        full_name: fullName,
+        phone_number: phoneNumber,
+        preferred_language: language
       });
       
-      // Redirect would happen here
-      
-    } catch (error) {
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create account. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Account created!",
+          description: "You have successfully created an account. Please check your email to confirm your registration.",
+        });
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
