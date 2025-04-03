@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
-const OPENWEATHER_API_KEY = Deno.env.get("OPENWEATHER_API_KEY");
+const OPENWEATHER_API_KEY = "c0413911273b214251bcd34a375b046b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

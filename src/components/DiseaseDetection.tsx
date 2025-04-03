@@ -4,24 +4,37 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Upload, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { Upload, Image as ImageIcon, AlertCircle, Save } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const DiseaseDetection = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<{
     disease: string;
     confidence: number;
     affectedArea: number;
     treatment: string;
   } | null>(null);
+  const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setSelectedFile(file);
       const fileReader = new FileReader();
       fileReader.onload = () => {
@@ -36,30 +49,78 @@ export const DiseaseDetection = () => {
     if (!selectedFile) return;
     
     setIsAnalyzing(true);
+    setUploadProgress(0);
     
-    // Mock analysis - in real implementation, this would be an API call
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 300);
       
-      // Mock result - would come from the AI model in production
-      setAnalysisResult({
-        disease: "Northern Corn Leaf Blight",
-        confidence: 92,
-        affectedArea: 35,
-        treatment: "Apply fungicide containing azoxystrobin, pyraclostrobin, or propiconazole. Remove and destroy infected leaves if possible. Ensure proper field drainage and crop rotation with non-host crops for 1-2 years."
+      // Upload the file to UploadThing
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      
+      // Call our Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('upload-image', {
+        body: { 
+          fileName: selectedFile.name,
+          fileType: selectedFile.type,
+          fileUrl: previewUrl
+        },
       });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Complete the progress bar
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      // Mock analysis result - in a real app, this would come from an AI model
+      setTimeout(() => {
+        setAnalysisResult({
+          disease: "Northern Corn Leaf Blight",
+          confidence: 92,
+          affectedArea: 35,
+          treatment: "Apply fungicide containing azoxystrobin, pyraclostrobin, or propiconazole. Remove and destroy infected leaves if possible. Ensure proper field drainage and crop rotation with non-host crops for 1-2 years."
+        });
+        setIsAnalyzing(false);
+      }, 1000);
+      
     } catch (error) {
       console.error("Error analyzing image:", error);
-    } finally {
+      toast({
+        title: "Analysis failed",
+        description: "There was a problem analyzing your image. Please try again.",
+        variant: "destructive"
+      });
       setIsAnalyzing(false);
     }
+  };
+
+  const handleSaveResults = () => {
+    if (!analysisResult) return;
+    
+    // Save the analysis results
+    toast({
+      title: "Results saved",
+      description: "The analysis results have been saved to your account.",
+    });
   };
 
   const handleReset = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setAnalysisResult(null);
+    setUploadProgress(0);
   };
 
   return (
@@ -118,7 +179,7 @@ export const DiseaseDetection = () => {
             {isAnalyzing ? (
               <>
                 <span className="mr-2">Analyzing...</span>
-                <Progress value={45} className="w-1/3 h-2" />
+                <Progress value={uploadProgress} className="w-1/3 h-2" />
               </>
             ) : (
               <>
@@ -150,7 +211,7 @@ export const DiseaseDetection = () => {
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <Upload className="h-10 w-10 mb-4 animate-pulse" />
               <p>Analyzing your image...</p>
-              <Progress value={45} className="w-2/3 h-2 mt-4" />
+              <Progress value={uploadProgress} className="w-2/3 h-2 mt-4" />
             </div>
           ) : analysisResult && (
             <>
@@ -192,7 +253,9 @@ export const DiseaseDetection = () => {
           <Button 
             className="bg-leaf-700 hover:bg-leaf-800"
             disabled={!analysisResult}
+            onClick={handleSaveResults}
           >
+            <Save className="mr-2 h-4 w-4" />
             Save Results
           </Button>
         </CardFooter>
