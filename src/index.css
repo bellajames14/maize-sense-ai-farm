@@ -1,71 +1,68 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 120 29% 97%;
-    --foreground: 120 5% 10%;
-
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 120 5% 10%;
-
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 120 5% 10%;
-
-    --primary: 125 55% 35%;
-    --primary-foreground: 120 5% 98%;
-
-    --secondary: 45 90% 50%;
-    --secondary-foreground: 40 10% 20%;
-
-    --muted: 120 5% 95%;
-    --muted-foreground: 120 5% 45%;
-
-    --accent: 35 90% 50%;
-    --accent-foreground: 30 10% 20%;
-
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 355 100% 100%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-
-    --border: 120 5% 90%;
-    --input: 120 5% 90%;
-    --ring: 125 55% 35%;
-
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 142 76% 36%;
     --radius: 0.5rem;
+    
+    /* Sidebar colors */
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-ring: var(--ring);
   }
-
+ 
   .dark {
-    --background: 120 5% 10%;
-    --foreground: 120 5% 98%;
-
-    --card: 120 5% 15%;
-    --card-foreground: 120 5% 98%;
-
-    --popover: 120 5% 15%;
-    --popover-foreground: 120 5% 98%;
-
-    --primary: 125 50% 35%;
-    --primary-foreground: 120 5% 98%;
-
-    --secondary: 45 70% 45%;
-    --secondary-foreground: 40 10% 98%;
-
-    --muted: 120 5% 25%;
-    --muted-foreground: 120 5% 70%;
-
-    --accent: 35 70% 45%;
-    --accent-foreground: 30 10% 98%;
-
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 355 100% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-
-    --border: 120 5% 25%;
-    --input: 120 5% 25%;
-    --ring: 125 50% 40%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142 76% 36%;
+    
+    /* Sidebar colors */
+    --sidebar: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-ring: var(--ring);
   }
 }
 
@@ -74,27 +71,17 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display;
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-@layer components {
-  .hero-gradient {
-    background: linear-gradient(100deg, rgba(34,197,94,0.2) 0%, rgba(255,228,98,0.2) 100%);
+@layer utilities {
+  .glass-morphism {
+    @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)];
   }
   
-  .feature-card {
-    @apply bg-white rounded-xl shadow-md transition-all duration-300 hover:shadow-xl p-6;
-  }
-
-  .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors;
-  }
-  
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2 rounded-md transition-colors;
+  .text-gradient {
+    @apply bg-gradient-to-br from-leaf-500 via-leaf-400 to-leaf-600 bg-clip-text text-transparent;
   }
 }

@@ -11,7 +11,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const systemPrompt = `
+// Define system prompts for different languages
+const systemPrompts = {
+  english: `
 You are an AI farming assistant specializing in maize (corn) cultivation. Your expertise covers:
 
 1. Maize diseases and pests identification and treatment
@@ -22,7 +24,20 @@ You are an AI farming assistant specializing in maize (corn) cultivation. Your e
 
 Provide helpful, practical advice using accessible language. Be concise but thorough, always prioritizing sustainable farming practices when possible. 
 If you don't know the answer to a question, say so honestly rather than providing potentially harmful advice.
-`;
+`,
+  yoruba: `
+Iwo ni alawusa AI ti o ni imọ nipa irugbin agbado. Iwo ni ogbọn ninu:
+
+1. Awọn arun agbado ati awọn kokoro ati itọju wọn
+2. Awọn ọna ti o dara julọ fun irugbin agbado
+3. Awọn imọran ti o da lori oju ojo fun irugbin agbado
+4. Isakoso ati ilẹ abẹlẹ fun agbado
+5. Ikore ati itọju lẹhin ikore
+
+Fun ni imọran ti o wulo, ti o pese nipasẹ ede ti o rọrun. Jẹ ki o kuru sugbọn pẹlu kikun, nigbagbogbo mu awọn ilana irugbin to dara lori. 
+Ti o ko ba mọ idahun si ibeere kan, sọ otitọ dipo fifun ni imọran ti o le jẹ ipalara.
+`
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -31,11 +46,14 @@ serve(async (req) => {
   }
 
   try {
-    const { message, userId, previousMessages = [] } = await req.json();
+    const { message, userId, previousMessages = [], language = "english" } = await req.json();
     
     if (!message) {
       throw new Error("Message is required");
     }
+
+    // Choose the appropriate system prompt based on language
+    const systemPrompt = systemPrompts[language] || systemPrompts.english;
 
     // Format conversation history for the AI model
     const formattedPreviousMessages = previousMessages.map(msg => ({

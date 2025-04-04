@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePreferences } from "@/contexts/PreferencesContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Moon, Sun } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -17,10 +20,11 @@ export type SettingsTab = "account" | "notifications" | "preferences";
 const Settings = () => {
   const { tab = "account" } = useParams<{ tab?: SettingsTab }>();
   const { user, loading } = useAuth();
+  const { translate, theme, setTheme, language, setLanguage } = usePreferences();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [language, setLanguage] = useState("english");
+  const [defaultLocation, setDefaultLocation] = useState("");
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -46,7 +50,6 @@ const Settings = () => {
           if (data) {
             setFullName(data.full_name || "");
             setPhoneNumber(data.phone_number || "");
-            setLanguage(data.preferred_language || "english");
             setEmail(user.email || "");
             
             // If we have notification preferences saved
@@ -79,8 +82,8 @@ const Settings = () => {
       if (error) throw error;
       
       toast({
-        title: "Profile updated",
-        description: "Your account information has been updated successfully."
+        title: translate("profile") + " " + translate("saveChanges").toLowerCase(),
+        description: translate("profile") + " " + translate("saveChanges").toLowerCase() + "."
       });
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -109,8 +112,8 @@ const Settings = () => {
       if (error) throw error;
       
       toast({
-        title: "Notification preferences updated",
-        description: "Your notification settings have been saved."
+        title: translate("notificationPreferences") + " " + translate("saveChanges").toLowerCase(),
+        description: translate("notificationPreferences") + " " + translate("saveChanges").toLowerCase() + "."
       });
     } catch (error) {
       console.error("Error updating notification preferences:", error);
@@ -132,15 +135,17 @@ const Settings = () => {
       const { error } = await supabase
         .from('profiles')
         .update({
-          preferred_language: language
+          preferred_language: language,
+          theme: theme,
+          // Add additional preferences as needed
         })
         .eq('id', user.id);
       
       if (error) throw error;
       
       toast({
-        title: "Preferences updated",
-        description: "Your language preference has been saved."
+        title: translate("preferences") + " " + translate("saveChanges").toLowerCase(),
+        description: translate("preferences") + " " + translate("saveChanges").toLowerCase() + "."
       });
     } catch (error) {
       console.error("Error updating preferences:", error);
@@ -165,13 +170,13 @@ const Settings = () => {
   return (
     <Layout>
       <div className="container mx-auto py-6 px-4 md:px-6">
-        <h1 className="text-2xl font-bold mb-6">Settings</h1>
+        <h1 className="text-2xl font-bold mb-6">{translate("settings")}</h1>
         
         <Tabs defaultValue={tab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="account">Account</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            <TabsTrigger value="account">{translate("account")}</TabsTrigger>
+            <TabsTrigger value="notifications">{translate("notifications")}</TabsTrigger>
+            <TabsTrigger value="preferences">{translate("preferences")}</TabsTrigger>
           </TabsList>
           
           {/* Account Settings */}
@@ -179,9 +184,9 @@ const Settings = () => {
             <div className="grid gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Profile</CardTitle>
+                  <CardTitle>{translate("profile")}</CardTitle>
                   <CardDescription>
-                    Manage your account information
+                    {translate("manageAccount")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -190,12 +195,12 @@ const Settings = () => {
                       <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}`} alt={fullName} />
                       <AvatarFallback>{fullName.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <Button variant="outline">Change Photo</Button>
+                    <Button variant="outline">{translate("changePhoto")}</Button>
                   </div>
                   
                   <div className="space-y-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="fullName">{translate("fullName")}</Label>
                       <Input 
                         id="fullName" 
                         value={fullName} 
@@ -204,7 +209,7 @@ const Settings = () => {
                     </div>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email">{translate("email")}</Label>
                       <Input 
                         id="email" 
                         value={email} 
@@ -217,7 +222,7 @@ const Settings = () => {
                     </div>
                     
                     <div className="grid gap-2">
-                      <Label htmlFor="phoneNumber">Phone Number</Label>
+                      <Label htmlFor="phoneNumber">{translate("phoneNumber")}</Label>
                       <Input 
                         id="phoneNumber" 
                         value={phoneNumber} 
@@ -231,7 +236,7 @@ const Settings = () => {
                       disabled={isSaving}
                       className="bg-leaf-700 hover:bg-leaf-800"
                     >
-                      {isSaving ? "Saving..." : "Save Changes"}
+                      {isSaving ? "Saving..." : translate("saveChanges")}
                     </Button>
                   </div>
                 </CardContent>
@@ -239,28 +244,28 @@ const Settings = () => {
               
               <Card>
                 <CardHeader>
-                  <CardTitle>Password</CardTitle>
+                  <CardTitle>{translate("password")}</CardTitle>
                   <CardDescription>
-                    Change your password
+                    {translate("changePassword")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Label htmlFor="currentPassword">{translate("currentPassword")}</Label>
                     <Input id="currentPassword" type="password" />
                   </div>
                   
                   <div className="grid gap-2">
-                    <Label htmlFor="newPassword">New Password</Label>
+                    <Label htmlFor="newPassword">{translate("newPassword")}</Label>
                     <Input id="newPassword" type="password" />
                   </div>
                   
                   <div className="grid gap-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Label htmlFor="confirmPassword">{translate("confirmPassword")}</Label>
                     <Input id="confirmPassword" type="password" />
                   </div>
                   
-                  <Button variant="outline">Change Password</Button>
+                  <Button variant="outline">{translate("changePassword")}</Button>
                 </CardContent>
               </Card>
             </div>
@@ -270,65 +275,50 @@ const Settings = () => {
           <TabsContent value="notifications">
             <Card>
               <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
+                <CardTitle>{translate("notificationPreferences")}</CardTitle>
                 <CardDescription>
-                  Choose how you want to receive notifications
+                  {translate("chooseNotifications")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-medium">Email Notifications</h3>
+                      <h3 className="font-medium">{translate("emailNotifications")}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Receive updates, alerts and recommendations via email
+                        {translate("receiveEmailUpdates")}
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={notifications.email}
-                        onChange={(e) => setNotifications({...notifications, email: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-leaf-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-leaf-500 peer-focus:ring-opacity-50 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-                    </label>
+                    <Switch 
+                      checked={notifications.email}
+                      onCheckedChange={(checked) => setNotifications({...notifications, email: checked})}
+                    />
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-medium">Push Notifications</h3>
+                      <h3 className="font-medium">{translate("pushNotifications")}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Receive real-time alerts on your device
+                        {translate("receiveRealTimeAlerts")}
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={notifications.push}
-                        onChange={(e) => setNotifications({...notifications, push: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-leaf-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-leaf-500 peer-focus:ring-opacity-50 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-                    </label>
+                    <Switch 
+                      checked={notifications.push}
+                      onCheckedChange={(checked) => setNotifications({...notifications, push: checked})}
+                    />
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-medium">SMS Notifications</h3>
+                      <h3 className="font-medium">{translate("smsNotifications")}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Receive important alerts via text message
+                        {translate("receiveTextMessages")}
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={notifications.sms}
-                        onChange={(e) => setNotifications({...notifications, sms: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-leaf-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-leaf-500 peer-focus:ring-opacity-50 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-                    </label>
+                    <Switch 
+                      checked={notifications.sms}
+                      onCheckedChange={(checked) => setNotifications({...notifications, sms: checked})}
+                    />
                   </div>
                 </div>
                 
@@ -337,7 +327,7 @@ const Settings = () => {
                   disabled={isSaving}
                   className="bg-leaf-700 hover:bg-leaf-800"
                 >
-                  {isSaving ? "Saving..." : "Save Preferences"}
+                  {isSaving ? "Saving..." : translate("savePreferences")}
                 </Button>
               </CardContent>
             </Card>
@@ -347,41 +337,68 @@ const Settings = () => {
           <TabsContent value="preferences">
             <Card>
               <CardHeader>
-                <CardTitle>App Preferences</CardTitle>
+                <CardTitle>{translate("appPreferences")}</CardTitle>
                 <CardDescription>
-                  Customize your app experience
+                  {translate("customizeExperience")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="language">Language</Label>
-                    <select 
-                      id="language"
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full px-3 py-2 mt-1 bg-background border border-input rounded-md"
-                    >
-                      <option value="english">English</option>
-                      <option value="yoruba">Yoruba</option>
-                      <option value="igbo">Igbo</option>
-                      <option value="hausa">Hausa</option>
-                    </select>
+                    <Label htmlFor="language">{translate("language")}</Label>
+                    <div className="flex items-center mt-2 space-x-2">
+                      <Button 
+                        variant={language === "english" ? "default" : "outline"}
+                        onClick={() => setLanguage("english")}
+                      >
+                        English
+                      </Button>
+                      <Button 
+                        variant={language === "yoruba" ? "default" : "outline"}
+                        onClick={() => setLanguage("yoruba")}
+                      >
+                        Yoruba
+                      </Button>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      This affects AI assistant responses and app content
+                      {translate("affectsAI")}
                     </p>
                   </div>
                   
                   <div>
-                    <h3 className="font-medium mb-2">Farm Location</h3>
-                    <Label htmlFor="defaultLocation">Default Weather Location</Label>
+                    <Label htmlFor="theme">{translate("theme")}</Label>
+                    <div className="flex items-center mt-2 space-x-2">
+                      <Button 
+                        variant={theme === "light" ? "default" : "outline"} 
+                        onClick={() => setTheme("light")}
+                        className="flex items-center gap-2"
+                      >
+                        <Sun className="h-4 w-4" />
+                        {translate("light")}
+                      </Button>
+                      <Button 
+                        variant={theme === "dark" ? "default" : "outline"} 
+                        onClick={() => setTheme("dark")}
+                        className="flex items-center gap-2"
+                      >
+                        <Moon className="h-4 w-4" />
+                        {translate("dark")}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium mb-2">{translate("farmLocation")}</h3>
+                    <Label htmlFor="defaultLocation">{translate("defaultLocation")}</Label>
                     <Input 
-                      id="defaultLocation" 
+                      id="defaultLocation"
+                      value={defaultLocation}
+                      onChange={(e) => setDefaultLocation(e.target.value)}
                       placeholder="e.g. Lagos, Nigeria" 
                       className="mt-1"
                     />
                     <p className="text-sm text-muted-foreground mt-1">
-                      Set your default farm location for weather reports
+                      {translate("setDefaultLocation")}
                     </p>
                   </div>
                 </div>
@@ -391,7 +408,7 @@ const Settings = () => {
                   disabled={isSaving}
                   className="bg-leaf-700 hover:bg-leaf-800"
                 >
-                  {isSaving ? "Saving..." : "Save Preferences"}
+                  {isSaving ? "Saving..." : translate("savePreferences")}
                 </Button>
               </CardContent>
             </Card>
