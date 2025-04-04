@@ -7,8 +7,8 @@ import { AIAssistant } from "@/components/AIAssistant";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { MessageSquare, Upload, Cloud, Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePreferences } from "@/contexts/PreferencesContext";
+import { useAuth } from "@/hooks/useAuthContext";
+import { usePreferences } from "@/hooks/usePreferences";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 

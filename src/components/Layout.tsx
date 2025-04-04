@@ -1,6 +1,6 @@
 
-import { useAuth } from "@/contexts/AuthContext";
-import { usePreferences } from "@/contexts/PreferencesContext";
+import { useAuth } from "@/hooks/useAuthContext";
+import { usePreferences } from "@/hooks/usePreferences";
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
