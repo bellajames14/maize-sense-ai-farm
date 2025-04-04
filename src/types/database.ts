@@ -8,12 +8,12 @@ export interface Database {
     phone_number: string | null;
     preferred_language: string | null;
     avatar_url: string | null;
-    notification_preferences?: {
+    notification_preferences: {
       email: boolean;
       push: boolean;
       sms: boolean;
-    };
-    theme?: 'light' | 'dark';
+    } | null;
+    theme: 'light' | 'dark' | null;
   };
   
   scans: {

@@ -240,11 +240,11 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
         
         if (data) {
           if (data.preferred_language === 'yoruba' || data.preferred_language === 'english') {
-            setLanguageState(data.preferred_language);
+            setLanguageState(data.preferred_language as LanguageType);
           }
           
           if (data.theme === 'light' || data.theme === 'dark') {
-            setThemeState(data.theme);
+            setThemeState(data.theme as ThemeType);
           }
         }
       } catch (error) {
@@ -261,10 +261,12 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (user) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({ theme: newTheme })
           .eq('id', user.id);
+          
+        if (error) throw error;
       } catch (error) {
         console.error("Error updating theme preference:", error);
       }
@@ -277,10 +279,12 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (user) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({ preferred_language: newLanguage })
           .eq('id', user.id);
+          
+        if (error) throw error;
       } catch (error) {
         console.error("Error updating language preference:", error);
       }
