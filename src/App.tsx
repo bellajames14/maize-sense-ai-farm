@@ -40,12 +40,12 @@ const App = () => (
               } />
               <Route path="/knowledge" element={
                 <ProtectedRoute>
-                  <Dashboard tab="knowledge" />
+                  <Dashboard />
                 </ProtectedRoute>
               } />
               <Route path="/alerts" element={
                 <ProtectedRoute>
-                  <Dashboard tab="alerts" />
+                  <Dashboard />
                 </ProtectedRoute>
               } />
               <Route path="/settings" element={

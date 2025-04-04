@@ -1,25 +1,12 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/components/ui/use-toast';
+import { AuthContextProps } from '@/types/auth';
+import { fetchUserProfile, signInWithEmail, signUpWithEmail, signOutUser } from '@/utils/auth';
 
-interface AuthContextProps {
-  user: User | null;
-  session: Session | null;
-  signIn: (email: string, password: string) => Promise<{ error: any | null; data: any | null }>;
-  signUp: (email: string, password: string, userData: {
-    full_name?: string;
-    phone_number?: string;
-    preferred_language?: string;
-  }) => Promise<{ error: any | null; data: any | null }>;
-  signOut: () => Promise<void>;
-  loading: boolean;
-  userProfile: any | null;
-}
-
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+export const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -27,27 +14,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-      return null;
-    }
-  };
 
   useEffect(() => {
     // Set up the auth state listener
@@ -95,35 +61,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        toast({
-          title: "Login failed",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else if (data.user) {
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${data.user.user_metadata?.full_name || data.user.email}!`,
-        });
-        
-        const profile = await fetchUserProfile(data.user.id);
-        setUserProfile(profile);
-      }
-      
-      return { data, error };
-    } catch (error) {
-      console.error('Error signing in:', error);
-      toast({
-        title: "Login failed",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
-      return { error, data: null };
+    const result = await signInWithEmail(email, password);
+    
+    if (result.data?.user) {
+      const profile = await fetchUserProfile(result.data.user.id);
+      setUserProfile(profile);
     }
+    
+    return result;
   };
 
   const signUp = async (email: string, password: string, userData: {
@@ -131,55 +76,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone_number?: string;
     preferred_language?: string;
   }) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: userData
-        }
-      });
-      
-      if (error) {
-        toast({
-          title: "Registration failed",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created successfully!",
-        });
-      }
-      
-      return { data, error };
-    } catch (error) {
-      console.error('Error signing up:', error);
-      toast({
-        title: "Registration failed",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
-      return { error, data: null };
-    }
+    return signUpWithEmail(email, password, userData);
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
+    const { success } = await signOutUser();
+    if (success) {
       setUserProfile(null);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      });
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -196,10 +99,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+// Export from the hook file
+export { useAuth } from '@/hooks/useAuthContext';
