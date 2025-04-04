@@ -1,17 +1,19 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cloud, CloudRain, Droplets, Thermometer, Wind, Sun, AlertTriangle } from "lucide-react";
+import { Cloud, CloudRain, Droplets, Thermometer, Wind, Sun, AlertTriangle, Save, Database } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const WeatherInsights = () => {
   const [location, setLocation] = useState("Lagos, Nigeria");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [weather, setWeather] = useState<{
     temperature: number;
     humidity: number;
@@ -19,10 +21,18 @@ export const WeatherInsights = () => {
     icon: string;
     windSpeed: number;
     rainfall: number;
+    pressure: number;
     location?: string;
     country?: string;
+    recommendations?: {
+      irrigation: string;
+      disease: string;
+      pests: string;
+      general: string;
+    };
   } | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchWeatherData = async () => {
     if (!location.trim()) {
@@ -46,6 +56,11 @@ export const WeatherInsights = () => {
       }
       
       setWeather(data);
+      
+      toast({
+        title: "Weather data updated",
+        description: `Current conditions for ${data.location}, ${data.country}`,
+      });
     } catch (error) {
       console.error("Error fetching weather data:", error);
       toast({
@@ -58,11 +73,57 @@ export const WeatherInsights = () => {
     }
   };
 
+  const saveWeatherData = async () => {
+    if (!weather || !user) {
+      toast({
+        title: "Cannot save weather data",
+        description: user ? "No weather data available" : "Please log in to save weather data",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      // Insert the weather data into Supabase
+      const { error } = await supabase
+        .from('weather_logs')
+        .insert({
+          user_id: user.id,
+          location: `${weather.location}, ${weather.country}`,
+          temperature: weather.temperature,
+          humidity: weather.humidity,
+          pressure: weather.pressure,
+          precipitation: weather.rainfall,
+          wind_speed: weather.windSpeed,
+          weather_condition: weather.condition,
+          recommendation: JSON.stringify(weather.recommendations)
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Weather data saved",
+        description: "The weather data has been saved to your account",
+      });
+    } catch (error) {
+      console.error("Error saving weather data:", error);
+      toast({
+        title: "Error saving weather data",
+        description: "Could not save weather data to your account. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchWeatherData();
   }, []);
 
-  // Map OpenWeather condition to appropriate icons from Lucide
+  // Map weather condition to appropriate icons from Lucide
   const getWeatherIcon = (condition: string) => {
     switch (condition.toLowerCase()) {
       case 'clear':
@@ -136,6 +197,23 @@ export const WeatherInsights = () => {
                   <span>Feels like {weather.temperature}°C</span>
                 </div>
               </div>
+              
+              {user && (
+                <Button
+                  onClick={saveWeatherData}
+                  disabled={isSaving}
+                  className="mt-4 bg-green-700 hover:bg-green-800"
+                >
+                  {isSaving ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Weather Data
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           ) : (
             <div className="h-48 flex items-center justify-center text-muted-foreground">
@@ -153,17 +231,13 @@ export const WeatherInsights = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {weather && (
+          {weather && weather.recommendations ? (
             <>
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Weather Alert</AlertTitle>
                 <AlertDescription>
-                  {weather.humidity > 70 
-                    ? "High humidity levels may increase risk of fungal diseases. Monitor your crops closely."
-                    : weather.temperature > 30
-                    ? "High temperatures may stress plants. Ensure adequate irrigation."
-                    : "Current weather conditions are favorable for maize growth."}
+                  {weather.recommendations.general}
                 </AlertDescription>
               </Alert>
 
@@ -171,50 +245,48 @@ export const WeatherInsights = () => {
                 <div>
                   <h3 className="font-medium text-lg">Irrigation Recommendations</h3>
                   <div className="bg-muted rounded-lg p-3 mt-2">
-                    <p>With the recent rainfall of {weather.rainfall}mm and humidity at {weather.humidity}%, adjust your irrigation schedule:</p>
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      {weather.rainfall > 0 
-                        ? <li>Reduce irrigation by 30% for the next 48 hours</li>
-                        : <li>Maintain regular irrigation schedule</li>}
-                      <li>Monitor soil moisture levels closely</li>
-                      <li>Water early in the morning to reduce evaporation and fungal growth</li>
-                    </ul>
+                    <p>{weather.recommendations.irrigation}</p>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="font-medium text-lg">Disease Prevention</h3>
                   <div className="bg-muted rounded-lg p-3 mt-2">
-                    <p>{weather.humidity > 70 ? "Current conditions are favorable for fungal diseases like:" : "Watch for these common diseases:"}</p>
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>Gray Leaf Spot</li>
-                      <li>Northern Corn Leaf Blight</li>
-                      <li>Common Rust</li>
-                    </ul>
-                    <p className="mt-2">{weather.humidity > 70 ? "Consider preventative fungicide application if these diseases have been an issue previously." : "Maintain regular monitoring of your crops."}</p>
+                    <p>{weather.recommendations.disease}</p>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="font-medium text-lg">Pest Management</h3>
                   <div className="bg-muted rounded-lg p-3 mt-2">
-                    <p>{weather.temperature > 25 ? "Warm conditions are ideal for:" : "Keep an eye out for these pests:"}</p>
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>Fall Armyworm</li>
-                      <li>Corn Earworm</li>
-                      <li>Aphids</li>
-                    </ul>
-                    <p className="mt-2">Monitor your maize plants for these pests and consider appropriate control measures if detected.</p>
+                    <p>{weather.recommendations.pests}</p>
                   </div>
                 </div>
               </div>
             </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground">
+              <AlertTriangle className="h-10 w-10 mb-4" />
+              <p>No weather recommendations available</p>
+              <p className="text-sm">Update weather data to get personalized farming recommendations</p>
+            </div>
           )}
         </CardContent>
         <CardFooter>
-          <Button className="bg-leaf-700 hover:bg-leaf-800">
-            View Detailed Forecast
-          </Button>
+          {!user ? (
+            <Button className="bg-green-700 hover:bg-green-800">
+              <Database className="mr-2 h-4 w-4" />
+              Login to Save Recommendations
+            </Button>
+          ) : (
+            <Button 
+              className="bg-green-700 hover:bg-green-800"
+              onClick={fetchWeatherData}
+              disabled={isLoading}
+            >
+              Refresh Weather Data
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>

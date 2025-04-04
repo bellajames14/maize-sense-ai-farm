@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Upload, Image as ImageIcon, AlertCircle, Save } from "lucide-react";
+import { Upload, Image as ImageIcon, AlertCircle, Save, Database } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const DiseaseDetection = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -18,10 +19,12 @@ export const DiseaseDetection = () => {
   const [analysisResult, setAnalysisResult] = useState<{
     disease: string;
     confidence: number;
-    affectedArea: number;
+    affectedArea: string;
     treatment: string;
+    prevention: string;
   } | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -46,7 +49,7 @@ export const DiseaseDetection = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !previewUrl) return;
     
     setIsAnalyzing(true);
     setUploadProgress(0);
@@ -63,16 +66,13 @@ export const DiseaseDetection = () => {
         });
       }, 300);
       
-      // Upload the file to UploadThing
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      
-      // Call our Supabase Edge Function
+      // Call our Supabase Edge Function to upload and analyze the image
       const { data, error } = await supabase.functions.invoke('upload-image', {
         body: { 
           fileName: selectedFile.name,
           fileType: selectedFile.type,
-          fileUrl: previewUrl
+          fileUrl: previewUrl,
+          userId: user?.id || null
         },
       });
       
@@ -84,17 +84,18 @@ export const DiseaseDetection = () => {
       clearInterval(progressInterval);
       setUploadProgress(100);
       
-      // Mock analysis result - in a real app, this would come from an AI model
-      setTimeout(() => {
-        setAnalysisResult({
-          disease: "Northern Corn Leaf Blight",
-          confidence: 92,
-          affectedArea: 35,
-          treatment: "Apply fungicide containing azoxystrobin, pyraclostrobin, or propiconazole. Remove and destroy infected leaves if possible. Ensure proper field drainage and crop rotation with non-host crops for 1-2 years."
+      // Extract disease analysis results
+      if (data.diseaseAnalysis) {
+        setAnalysisResult(data.diseaseAnalysis);
+        
+        // Show success toast
+        toast({
+          title: "Analysis complete",
+          description: `Detected: ${data.diseaseAnalysis.disease} with ${data.diseaseAnalysis.confidence}% confidence`,
         });
-        setIsAnalyzing(false);
-      }, 1000);
-      
+      } else {
+        throw new Error("No analysis results returned");
+      }
     } catch (error) {
       console.error("Error analyzing image:", error);
       toast({
@@ -102,18 +103,36 @@ export const DiseaseDetection = () => {
         description: "There was a problem analyzing your image. Please try again.",
         variant: "destructive"
       });
+    } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleSaveResults = () => {
-    if (!analysisResult) return;
+  const handleSaveResults = async () => {
+    if (!analysisResult || !user) {
+      toast({
+        title: "Cannot save results",
+        description: user ? "No analysis results to save" : "Please log in to save results",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Save the analysis results
-    toast({
-      title: "Results saved",
-      description: "The analysis results have been saved to your account.",
-    });
+    try {
+      // The results are already saved in the database during analysis if user is logged in
+      // This is just for UX to confirm to the user
+      toast({
+        title: "Results saved",
+        description: "The analysis results have been saved to your account.",
+      });
+    } catch (error) {
+      console.error("Error saving results:", error);
+      toast({
+        title: "Save failed",
+        description: "There was a problem saving your results. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleReset = () => {
@@ -172,7 +191,7 @@ export const DiseaseDetection = () => {
             )}
           </div>
           <Button 
-            className="w-full bg-leaf-700 hover:bg-leaf-800"
+            className="w-full bg-green-700 hover:bg-green-800"
             onClick={handleAnalyze}
             disabled={!selectedFile || isAnalyzing}
           >
@@ -217,11 +236,11 @@ export const DiseaseDetection = () => {
             <>
               <div className="space-y-2">
                 <h3 className="font-medium">Detected Disease</h3>
-                <Alert variant="destructive">
+                <Alert variant={analysisResult.disease === "Healthy" ? "default" : "destructive"}>
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>{analysisResult.disease}</AlertTitle>
                   <AlertDescription className="mt-2">
-                    Confidence: {analysisResult.confidence}% | Affected Area: {analysisResult.affectedArea}%
+                    Confidence: {analysisResult.confidence}% | Affected Area: {analysisResult.affectedArea}
                   </AlertDescription>
                 </Alert>
               </div>
@@ -235,13 +254,9 @@ export const DiseaseDetection = () => {
               
               <div className="space-y-2">
                 <h3 className="font-medium">Prevention Tips</h3>
-                <ul className="list-disc list-inside text-sm space-y-1 bg-muted rounded-lg p-3">
-                  <li>Rotate crops with non-host plants</li>
-                  <li>Use resistant maize varieties when possible</li>
-                  <li>Ensure proper field drainage</li>
-                  <li>Apply preventative fungicides when disease pressure is high</li>
-                  <li>Remove crop debris after harvest</li>
-                </ul>
+                <div className="bg-muted rounded-lg p-3 text-sm">
+                  {analysisResult.prevention}
+                </div>
               </div>
             </>
           )}
@@ -251,12 +266,21 @@ export const DiseaseDetection = () => {
             Reset
           </Button>
           <Button 
-            className="bg-leaf-700 hover:bg-leaf-800"
-            disabled={!analysisResult}
+            className="bg-green-700 hover:bg-green-800"
+            disabled={!analysisResult || !user}
             onClick={handleSaveResults}
           >
-            <Save className="mr-2 h-4 w-4" />
-            Save Results
+            {user ? (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Results
+              </>
+            ) : (
+              <>
+                <Database className="mr-2 h-4 w-4" />
+                Login to Save
+              </>
+            )}
           </Button>
         </CardFooter>
       </Card>

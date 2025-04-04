@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_chats: {
+        Row: {
+          ai_response: string
+          created_at: string
+          id: string
+          user_id: string
+          user_message: string
+        }
+        Insert: {
+          ai_response: string
+          created_at?: string
+          id?: string
+          user_id: string
+          user_message: string
+        }
+        Update: {
+          ai_response?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          user_message?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -36,6 +60,84 @@ export type Database = {
           phone_number?: string | null
           preferred_language?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      scans: {
+        Row: {
+          affected_area_estimate: string | null
+          confidence: number | null
+          created_at: string
+          disease_name: string | null
+          id: string
+          image_url: string
+          prevention_tips: string | null
+          treatment_tips: string | null
+          user_id: string
+        }
+        Insert: {
+          affected_area_estimate?: string | null
+          confidence?: number | null
+          created_at?: string
+          disease_name?: string | null
+          id?: string
+          image_url: string
+          prevention_tips?: string | null
+          treatment_tips?: string | null
+          user_id: string
+        }
+        Update: {
+          affected_area_estimate?: string | null
+          confidence?: number | null
+          created_at?: string
+          disease_name?: string | null
+          id?: string
+          image_url?: string
+          prevention_tips?: string | null
+          treatment_tips?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weather_logs: {
+        Row: {
+          created_at: string
+          humidity: number | null
+          id: string
+          location: string
+          precipitation: number | null
+          pressure: number | null
+          recommendation: string | null
+          temperature: number | null
+          user_id: string
+          weather_condition: string | null
+          wind_speed: number | null
+        }
+        Insert: {
+          created_at?: string
+          humidity?: number | null
+          id?: string
+          location: string
+          precipitation?: number | null
+          pressure?: number | null
+          recommendation?: string | null
+          temperature?: number | null
+          user_id: string
+          weather_condition?: string | null
+          wind_speed?: number | null
+        }
+        Update: {
+          created_at?: string
+          humidity?: number | null
+          id?: string
+          location?: string
+          precipitation?: number | null
+          pressure?: number | null
+          recommendation?: string | null
+          temperature?: number | null
+          user_id?: string
+          weather_condition?: string | null
+          wind_speed?: number | null
         }
         Relationships: []
       }

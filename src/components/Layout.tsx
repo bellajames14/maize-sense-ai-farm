@@ -1,15 +1,19 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, Settings, LogOut, Menu, Bell, X, MessageSquare, Cloud, Upload, User } from "lucide-react";
+import { 
+  Home, Settings, LogOut, Menu, Bell, X, MessageSquare, 
+  Cloud, Upload, User, AlertTriangle, BookOpen 
+} from "lucide-react";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -18,6 +22,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // Function to check if a path is active
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
   return (
@@ -31,11 +40,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         <div className="flex h-16 items-center justify-between px-4 border-b">
           {isSidebarOpen ? (
             <span className="flex items-center gap-2 text-lg font-semibold">
-              <img src="/placeholder.svg" alt="MaizeSense AI" className="h-6 w-6" />
-              MaizeSense AI
+              <img src="/placeholder.svg" alt="mCrop AI" className="h-8 w-8" />
+              mCrop AI
             </span>
           ) : (
-            <img src="/placeholder.svg" alt="MaizeSense AI" className="h-6 w-6 mx-auto" />
+            <img src="/placeholder.svg" alt="mCrop AI" className="h-8 w-8 mx-auto" />
           )}
           <Button
             variant="ghost"
@@ -52,7 +61,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             {isSidebarOpen && <h2 className="mb-2 text-xs font-semibold text-muted-foreground">Dashboard</h2>}
             <div className="space-y-1">
               <Button
-                variant="ghost"
+                variant={isActive("/dashboard") && !isActive("/dashboard/disease") && !isActive("/dashboard/weather") && !isActive("/dashboard/assistant") ? "secondary" : "ghost"}
                 className={`w-full justify-start px-3 ${isSidebarOpen ? "" : "justify-center"}`}
                 asChild
               >
@@ -62,7 +71,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </Link>
               </Button>
               <Button
-                variant="ghost"
+                variant={isActive("/dashboard/disease") ? "secondary" : "ghost"}
                 className={`w-full justify-start px-3 ${isSidebarOpen ? "" : "justify-center"}`}
                 asChild
               >
@@ -72,7 +81,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </Link>
               </Button>
               <Button
-                variant="ghost"
+                variant={isActive("/dashboard/weather") ? "secondary" : "ghost"}
                 className={`w-full justify-start px-3 ${isSidebarOpen ? "" : "justify-center"}`}
                 asChild
               >
@@ -82,13 +91,33 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 </Link>
               </Button>
               <Button
-                variant="ghost"
+                variant={isActive("/dashboard/assistant") ? "secondary" : "ghost"}
                 className={`w-full justify-start px-3 ${isSidebarOpen ? "" : "justify-center"}`}
                 asChild
               >
                 <Link to="/dashboard/assistant">
                   <MessageSquare className={`h-4 w-4 ${isSidebarOpen ? "mr-2" : ""}`} />
                   {isSidebarOpen && <span>AI Assistant</span>}
+                </Link>
+              </Button>
+              <Button
+                variant={isActive("/knowledge-base") ? "secondary" : "ghost"}
+                className={`w-full justify-start px-3 ${isSidebarOpen ? "" : "justify-center"}`}
+                asChild
+              >
+                <Link to="/dashboard">
+                  <BookOpen className={`h-4 w-4 ${isSidebarOpen ? "mr-2" : ""}`} />
+                  {isSidebarOpen && <span>Knowledge Base</span>}
+                </Link>
+              </Button>
+              <Button
+                variant={isActive("/alerts") ? "secondary" : "ghost"}
+                className={`w-full justify-start px-3 ${isSidebarOpen ? "" : "justify-center"}`}
+                asChild
+              >
+                <Link to="/dashboard">
+                  <AlertTriangle className={`h-4 w-4 ${isSidebarOpen ? "mr-2" : ""}`} />
+                  {isSidebarOpen && <span>Alerts & Notifications</span>}
                 </Link>
               </Button>
             </div>
@@ -98,7 +127,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <h2 className="mb-2 text-xs font-semibold text-muted-foreground">Settings</h2>
               <div className="space-y-1">
                 <Button
-                  variant="ghost"
+                  variant={isActive("/settings/account") ? "secondary" : "ghost"}
                   className="w-full justify-start px-3"
                   asChild
                 >
@@ -108,7 +137,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   </Link>
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant={isActive("/settings/notifications") ? "secondary" : "ghost"}
                   className="w-full justify-start px-3"
                   asChild
                 >
@@ -118,7 +147,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   </Link>
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant={isActive("/settings/preferences") ? "secondary" : "ghost"}
                   className="w-full justify-start px-3"
                   asChild
                 >
@@ -169,7 +198,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <Button variant="ghost" size="icon" onClick={toggleMobileMenu}>
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            <span className="ml-2 text-lg font-semibold">MaizeSense AI</span>
+            <div className="ml-2 flex items-center gap-2">
+              <img src="/placeholder.svg" alt="mCrop AI" className="h-6 w-6" />
+              <span className="text-lg font-semibold">mCrop AI</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" asChild>
@@ -190,43 +222,55 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="absolute top-16 left-0 right-0 bg-background border-b shadow-lg">
             <nav className="py-4">
               <div className="px-4 space-y-1">
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/dashboard") && !isActive("/dashboard/disease") && !isActive("/dashboard/weather") && !isActive("/dashboard/assistant") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/dashboard" onClick={toggleMobileMenu}>
                     <Home className="mr-2 h-4 w-4" />
                     <span>Home</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/dashboard/disease") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/dashboard/disease" onClick={toggleMobileMenu}>
                     <Upload className="mr-2 h-4 w-4" />
                     <span>Disease Detection</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/dashboard/weather") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/dashboard/weather" onClick={toggleMobileMenu}>
                     <Cloud className="mr-2 h-4 w-4" />
                     <span>Weather Insights</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/dashboard/assistant") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/dashboard/assistant" onClick={toggleMobileMenu}>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     <span>AI Assistant</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/knowledge-base") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
+                  <Link to="/dashboard" onClick={toggleMobileMenu}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    <span>Knowledge Base</span>
+                  </Link>
+                </Button>
+                <Button variant={isActive("/alerts") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
+                  <Link to="/dashboard" onClick={toggleMobileMenu}>
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    <span>Alerts & Notifications</span>
+                  </Link>
+                </Button>
+                <Button variant={isActive("/settings/account") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/settings/account" onClick={toggleMobileMenu}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Account</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/settings/notifications") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/settings/notifications" onClick={toggleMobileMenu}>
                     <Bell className="mr-2 h-4 w-4" />
                     <span>Notifications</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
+                <Button variant={isActive("/settings/preferences") ? "secondary" : "ghost"} className="w-full justify-start" asChild>
                   <Link to="/settings/preferences" onClick={toggleMobileMenu}>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Preferences</span>
