@@ -35,6 +35,8 @@ export function AIAssistant() {
     setIsProcessing(true);
     
     try {
+      console.log(`Sending message to AI in ${language} language`);
+      
       const response = await supabase.functions.invoke('chat-with-ai', {
         body: { 
           message: userMessage,
@@ -45,12 +47,15 @@ export function AIAssistant() {
       });
       
       if (response.error) {
+        console.error("Supabase function error:", response.error);
         throw new Error(response.error.message || "Error processing request");
       }
       
+      console.log("AI response received:", response.data);
+      
       // Add AI response to chat history
       setChatHistory((prev) => [...prev, { content: response.data.response, isUser: false }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending message:", error);
       toast({
         title: translate("Error"),

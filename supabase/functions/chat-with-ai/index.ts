@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://sfsdfdcdethqjwtjrwpz.supabase.co";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmc2RmZGNkZXRocWp3dGpyd3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NzU1NDAsImV4cCI6MjA1OTI1MTU0MH0.o-LLkQhEW7QJhVPyrZKoNYOMHKNIGH_5NWMTnMILqKs";
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyD428DEtNiCPGyayEL0ehbu2ayv8rW0Ma8";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyCySmGu1aMdenR6_EwhN4tJMCnJhLhHKkw";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,9 +74,12 @@ serve(async (req) => {
       }
     ];
 
-    // Call Google's Gemini API
+    console.log("Calling Gemini API with language:", language);
+    console.log("API Key Used (first 4 chars):", GEMINI_API_KEY.substring(0, 4) + "...");
+
+    // Call Google's Gemini API with the fixed endpoint and proper request format
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -96,16 +99,20 @@ serve(async (req) => {
 
     if (!geminiResponse.ok) {
       const errorData = await geminiResponse.json();
-      throw new Error(`Gemini API error: ${errorData.error?.message || geminiResponse.status}`);
+      console.error("Gemini API error:", errorData);
+      throw new Error(`Gemini API error: ${JSON.stringify(errorData.error || geminiResponse.statusText)}`);
     }
 
     const responseData = await geminiResponse.json();
+    console.log("Gemini Response received:", responseData.candidates ? "Has candidates" : "No candidates");
+    
     let aiResponse = "";
     
     if (responseData.candidates && responseData.candidates.length > 0 && 
         responseData.candidates[0].content && responseData.candidates[0].content.parts) {
       aiResponse = responseData.candidates[0].content.parts[0].text;
     } else {
+      console.error("Unexpected response format:", JSON.stringify(responseData));
       throw new Error("Unexpected response format from Gemini API");
     }
 
@@ -117,7 +124,8 @@ serve(async (req) => {
       await supabaseClient.from('ai_chats').insert({
         user_id: userId,
         user_message: message,
-        ai_response: aiResponse
+        ai_response: aiResponse,
+        language: language
       });
     }
     
@@ -127,7 +135,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error processing AI chat:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || "Unknown error occurred" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
