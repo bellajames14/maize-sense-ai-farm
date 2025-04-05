@@ -62,7 +62,7 @@ serve(async (req) => {
     };
 
     // Add farming recommendations based on weather conditions and forecast
-    const recommendations = generateFarmingRecommendations(transformedData, forecastData);
+    const recommendations = generateFarmerFriendlyRecommendations(transformedData, forecastData);
     
     // Combine the weather data with recommendations
     const responseData = {
@@ -114,7 +114,7 @@ function processForecastData(forecastData) {
   return processedForecast;
 }
 
-function generateFarmingRecommendations(weather, forecastData) {
+function generateFarmerFriendlyRecommendations(weather, forecastData) {
   const { temperature, humidity, rainfall, windSpeed } = weather;
   const forecast = forecastData?.list || [];
   
@@ -136,52 +136,52 @@ function generateFarmingRecommendations(weather, forecastData) {
     general: ""
   };
   
-  // Irrigation recommendations
+  // Irrigation recommendations - using simple language
   if (rainfall > 5) {
-    recommendations.irrigation = "Recent rainfall is sufficient. Reduce irrigation for the next 48 hours.";
+    recommendations.irrigation = "The rain today is enough for your plants. Don't add more water for 2 days.";
   } else if (heavyRainExpected) {
-    recommendations.irrigation = "Heavy rainfall expected soon. Hold irrigation until after the rain.";
+    recommendations.irrigation = "Heavy rain is coming soon. Wait until after the rain before watering your plants.";
   } else if (temperature > 30 && humidity < 50) {
-    recommendations.irrigation = "High temperature and low humidity detected. Increase irrigation frequency.";
+    recommendations.irrigation = "It's very hot and dry today. Your plants need more water than usual.";
   } else if (temperature < 15) {
-    recommendations.irrigation = "Lower temperatures reduce evaporation. Adjust irrigation accordingly.";
+    recommendations.irrigation = "It's cool today, so your plants will lose less water. Water them less than usual.";
   } else {
-    recommendations.irrigation = "Maintain regular irrigation schedule based on soil moisture levels.";
+    recommendations.irrigation = "Water your plants as normal today. Check the soil with your finger - if it feels dry, add water.";
   }
   
-  // Disease risk assessment
+  // Disease risk assessment - simplified language
   if (humidity > 80 && temperature > 22) {
-    recommendations.disease = "High risk for fungal diseases. Consider preventative fungicide application.";
+    recommendations.disease = "The air is very wet and warm. Your maize plants might get sick. Watch for strange spots on leaves and spray plant medicine if you see any.";
   } else if (rainfall > 10 && temperature > 20) {
-    recommendations.disease = "Moderate disease risk due to recent rainfall. Monitor crops closely.";
+    recommendations.disease = "After this much rain, check your plants carefully for spots or white powder on leaves. These are signs of sickness.";
   } else if (heavyRainExpected && temperature > 20) {
-    recommendations.disease = "Upcoming rainfall increases disease risk. Consider preventative measures.";
+    recommendations.disease = "Heavy rain is coming. After rain, check your plants for signs of sickness like spots or changing leaf color.";
   } else {
-    recommendations.disease = "Low disease risk under current conditions. Maintain regular monitoring.";
+    recommendations.disease = "Your plants have low chance of getting sick in this weather. Still good to check them every few days.";
   }
   
-  // Pest management
+  // Pest management - using simple terms
   if (temperature > 25 && humidity > 60) {
-    recommendations.pests = "Conditions favorable for armyworm and aphid development. Scout fields regularly.";
+    recommendations.pests = "This warm, wet weather brings insects that eat plants. Check under leaves and in the middle of your plants for small bugs or holes in leaves.";
   } else if (temperature < 15) {
-    recommendations.pests = "Reduced pest activity expected due to lower temperatures.";
+    recommendations.pests = "Cold weather means fewer bugs that can harm your plants. Still good to check, but less worry today.";
   } else {
-    recommendations.pests = "Moderate pest risk. Implement regular monitoring practices.";
+    recommendations.pests = "Some bugs might be around. Look at your plants every few days for signs like holes in leaves or small insects.";
   }
   
-  // General recommendations based on forecasting
+  // General recommendations - step by step, actionable
   if (heavyRainExpected) {
-    recommendations.general = "Heavy rainfall expected within 24 hours. Ensure proper drainage and consider protective measures for vulnerable crops.";
+    recommendations.general = "Heavy rain is coming in the next day. Here's what to do: 1) Make small channels near your plants so water can flow away. 2) If you can, cover young plants with plastic sheets or large leaves. 3) After the rain, remove any standing water near plants.";
   } else if (windSpeed > 20) {
-    recommendations.general = "High winds may damage crops. Consider temporary windbreaks if available.";
+    recommendations.general = "Strong winds today! 1) If you have young maize plants, support them with sticks. 2) For taller plants, you can pile a little soil around the base to make them stronger. 3) Check plants after the wind stops to fix any that fell over.";
   } else if (temperature > 35) {
-    recommendations.general = "Extreme heat may stress plants. Consider shade cloth for sensitive crops.";
+    recommendations.general = "Very hot today! 1) Water your plants early morning or evening, not midday. 2) If possible, create shade for smaller plants using cloths or palm leaves. 3) Add mulch (dry grass or leaves) around plants to keep soil cool.";
   } else if (temperatureDrop) {
-    recommendations.general = "Significant temperature drop expected. Protect temperature-sensitive crops.";
+    recommendations.general = "Temperature will drop a lot soon. 1) Cover young plants at night with cloth or large leaves. 2) Water plants during warmer parts of the day, not evening. 3) If you have plastic sheets, you can cover some plants overnight.";
   } else if (temperature < 5) {
-    recommendations.general = "Near freezing temperatures. Protect seedlings if possible.";
+    recommendations.general = "It's very cold! 1) Cover all young plants with whatever you have - cloth, large leaves, or plastic. 2) Water only when the sun is up and it's warmer. 3) Add extra mulch (dry grass/leaves) around plants.";
   } else {
-    recommendations.general = "Current conditions are generally favorable for maize growth.";
+    recommendations.general = "Weather is good for your maize today. Keep up regular care: 1) Check soil moisture with your finger - water if dry. 2) Look under leaves for any bugs or spots. 3) Remove any weeds you see growing near your plants.";
   }
   
   return recommendations;

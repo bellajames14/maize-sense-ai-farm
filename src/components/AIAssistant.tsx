@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -75,59 +75,76 @@ export function AIAssistant() {
 
   return (
     <div className="container mx-auto p-4">
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle>{translate("aiAssistant")}</CardTitle>
+      <Card className="w-full max-w-4xl mx-auto border-2 border-primary/20">
+        <CardHeader className="bg-muted/30">
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            {translate("aiAssistant")}
+          </CardTitle>
           <CardDescription>{translate("Ask the AI assistant about maize farming")}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4 mb-4 max-h-[calc(100vh-350px)] overflow-auto p-2">
+        <CardContent className="p-4 pt-6">
+          <div className="space-y-6 mb-6 max-h-[calc(100vh-350px)] overflow-auto p-2 rounded-lg">
             {chatHistory.length === 0 ? (
-              <p className="text-center text-muted-foreground italic">
-                {translate("Start a conversation with the AI assistant")}
-              </p>
+              <div className="text-center p-8 bg-muted/20 rounded-lg">
+                <MessageCircle className="h-10 w-10 mx-auto mb-2 text-primary/60" />
+                <p className="text-muted-foreground">
+                  {translate("Start a conversation with the AI assistant")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {language === "english" ? 
+                    "Try asking: 'How do I identify maize diseases?' or 'When is the best time to plant maize?'" : 
+                    "Gbiyanju: 'Bawo ni mo ṣe le ṣe idamo arun agbado?' tabi 'Igba wo ni o dara julọ lati gbin agbado?'"}
+                </p>
+              </div>
             ) : (
               chatHistory.map((msg, index) => (
                 <div
                   key={index}
-                  className={`p-3 rounded-lg ${
+                  className={`p-4 rounded-lg ${
                     msg.isUser
-                      ? "bg-primary text-primary-foreground ml-12"
-                      : "bg-muted text-muted-foreground mr-12"
+                      ? "bg-primary text-primary-foreground ml-12 shadow-sm"
+                      : "bg-muted text-foreground mr-12 shadow border border-border/30"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <div className="flex items-center mb-1 text-xs opacity-80">
+                    {msg.isUser ? translate("You") : translate("AI Assistant")}
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                 </div>
               ))
             )}
             {isProcessing && (
-              <div className="flex items-center justify-center space-x-2 text-muted-foreground">
+              <div className="flex items-center justify-center space-x-2 p-4 rounded-lg bg-muted mr-12 shadow border border-border/30">
+                <div className="flex items-center mb-1 text-xs opacity-80 mr-2">
+                  {translate("AI Assistant")}
+                </div>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <p>{translate("waitingForResponse")}</p>
+                <p className="text-sm text-muted-foreground">{translate("waitingForResponse")}</p>
               </div>
             )}
           </div>
-          <form onSubmit={sendMessage} className="space-y-2">
-            <Textarea
-              placeholder={translate("askMaizeQuestion")}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="min-h-[100px]"
-              disabled={isProcessing}
-            />
-            <Button type="submit" className="w-full" disabled={isProcessing || !message.trim()}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {translate("Processing")}...
-                </>
-              ) : (
-                translate("send")
-              )}
-            </Button>
+          <form onSubmit={sendMessage} className="space-y-4">
+            <div className="relative">
+              <Textarea
+                placeholder={translate("askMaizeQuestion")}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="min-h-[100px] pr-12 resize-none border-2"
+                disabled={isProcessing}
+              />
+              <Button 
+                type="submit" 
+                size="icon"
+                className="absolute bottom-2 right-2 rounded-full h-8 w-8" 
+                disabled={isProcessing || !message.trim()}
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
           </form>
         </CardContent>
-        <CardFooter className="text-sm text-muted-foreground">
+        <CardFooter className="text-sm text-muted-foreground bg-muted/30 border-t">
           {translate("The AI assistant uses machine learning to provide farming advice")}
         </CardFooter>
       </Card>

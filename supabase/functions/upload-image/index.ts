@@ -100,26 +100,26 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
     const imageBuffer = await imageResponse.arrayBuffer();
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
     
-    // Prepare the prompt for Gemini
+    // Prepare the prompt for Gemini that emphasizes farmer-friendly responses
     const prompt = `
-      Analyze this maize plant image for diseases. 
-      If you see any disease, provide the following information:
-      1. Disease name
-      2. Confidence level (as a percentage)
-      3. Estimated affected area (as a percentage)
-      4. Treatment recommendations
-      5. Prevention tips
+      Analyze this maize plant image for diseases using simple, farmer-friendly language.
       
-      If the plant appears healthy, say so.
+      If you see any disease:
+      1. Use simple words to describe what's wrong (like "spots on leaves" instead of technical disease names)
+      2. Be VERY CONFIDENT in your assessment - farmers need clear guidance
+      3. Give simple treatment suggestions using locally available solutions
+      4. Suggest prevention tips that don't require expensive equipment
       
-      Format your response as JSON with the following fields:
+      Format your response as JSON with these fields:
       {
-        "disease": "Disease name or Healthy",
+        "disease": "Simple name of problem or 'Healthy'",
         "confidence": 95,
         "affectedArea": "30%",
-        "treatment": "Treatment recommendations",
-        "prevention": "Prevention tips"
+        "treatment": "Simple, step-by-step treatment instructions using available resources",
+        "prevention": "Easy-to-follow prevention tips using simple language"
       }
+      
+      IMPORTANT: Keep all explanations brief, clear, and actionable. Use language a farmer with minimal education can understand.
     `;
     
     // Call Gemini Vision API
