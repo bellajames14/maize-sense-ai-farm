@@ -1,4 +1,3 @@
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +14,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { PreferencesPanel } from "@/components/PreferencesPanel";
 
 const Settings = () => {
   const { tab = "account" } = useParams<{ tab?: string }>();
@@ -245,26 +245,7 @@ const Settings = () => {
             </Card>
           </TabsContent>
           <TabsContent value="preferences" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>{translate("appPreferences")}</CardTitle>
-                <CardDescription>{translate("customizeExperience")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="language">{translate("language")}</Label>
-                  {/* Add language selection component here */}
-                </div>
-                <div>
-                  <Label htmlFor="theme">{translate("theme")}</Label>
-                  {/* Add theme selection component here */}
-                </div>
-                <div>
-                  <Label htmlFor="location">{translate("farmLocation")}</Label>
-                  {/* Add location selection component here */}
-                </div>
-              </CardContent>
-            </Card>
+            <PreferencesPanel />
           </TabsContent>
         </Tabs>
       </div>

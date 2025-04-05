@@ -1,217 +1,131 @@
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePreferences } from "@/contexts/PreferencesContext";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { usePreferences } from "@/hooks/usePreferences";
 
-type Message = {
-  id: string;
+type ChatMessage = {
   content: string;
   isUser: boolean;
-  timestamp: Date;
 };
 
-export const AIAssistant = () => {
+export function AIAssistant() {
   const [message, setMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const { user } = useAuth();
+  const { toast } = useToast();
   const { translate, language } = usePreferences();
 
-  // Function to add a new message to the chat history
-  const addMessage = (content: string, isUser: boolean) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      isUser,
-      timestamp: new Date(),
-    };
-    setChatHistory((prevHistory) => [...prevHistory, newMessage]);
-  };
-
-  // Handle sending a message
-  const handleSendMessage = async () => {
+  const sendMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
     if (!message.trim()) return;
     
-    addMessage(message, true);
-    setIsLoading(true);
+    const userMessage = message.trim();
+    setMessage("");
     
-    const userMessage = message;
-    setMessage(""); // Clear input field
+    // Add user message to chat history
+    setChatHistory((prev) => [...prev, { content: userMessage, isUser: true }]);
+    setIsProcessing(true);
     
     try {
-      // Format the chat history for the backend
-      const historyForBackend = chatHistory.map(msg => ({
-        content: msg.content,
-        isUser: msg.isUser,
-      }));
-      
-      // Send the message to your AI backend
-      const response = await fetch("https://sfsdfdcdethqjwtjrwpz.functions.supabase.co/chat-with-ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const response = await supabase.functions.invoke('chat-with-ai', {
+        body: { 
           message: userMessage,
           userId: user?.id,
-          previousMessages: historyForBackend,
-          language: language // Pass the selected language to the backend
-        }),
+          previousMessages: chatHistory.slice(-5), // Send last 5 messages for context
+          language: language // Send the current language preference
+        }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to get AI response");
+      if (response.error) {
+        throw new Error(response.error.message || "Error processing request");
       }
       
-      const data = await response.json();
-      addMessage(data.response, false);
+      // Add AI response to chat history
+      setChatHistory((prev) => [...prev, { content: response.data.response, isUser: false }]);
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
-        title: "Error",
-        description: "Failed to get a response. Please try again.",
+        title: translate("Error"),
+        description: typeof error === "string" ? error : translate("Failed to process your request"),
         variant: "destructive",
       });
+      
+      // Add error message to chat
+      setChatHistory((prev) => [...prev, { 
+        content: translate("Sorry, I couldn't process your request. Please try again later."), 
+        isUser: false 
+      }]);
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
-
-  // Handle Enter key press in the input field
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !isLoading) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  // Automatically scroll to the latest message
-  useEffect(() => {
-    const scrollArea = document.querySelector(".chat-scroll-area");
-    if (scrollArea) {
-      scrollArea.scrollTop = scrollArea.scrollHeight;
-    }
-  }, [chatHistory]);
 
   return (
-    <Card className="flex flex-col h-[80vh]">
-      <CardHeader className="px-6">
-        <CardTitle>{translate("aiAssistant")}</CardTitle>
-        <CardDescription>
-          {language === "english" 
-            ? "Ask questions about maize/corn farming to get personalized advice" 
-            : "Beere awọn ibeere nipa irugbin agbado lati gba imọran adinipada"}
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent className="flex-grow overflow-hidden p-0">
-        <ScrollArea className="chat-scroll-area h-full px-6 pt-0 pb-3">
-          {chatHistory.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center text-muted-foreground">
-                <p>{language === "english" 
-                  ? "Start a conversation with our AI Assistant" 
-                  : "Bẹrẹ ibaraenisoro pẹlu Alawusa AI wa"}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 pt-4">
-              {chatHistory.map((msg) => (
+    <div className="container mx-auto p-4">
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle>{translate("aiAssistant")}</CardTitle>
+          <CardDescription>{translate("Ask the AI assistant about maize farming")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4 mb-4 max-h-[calc(100vh-350px)] overflow-auto p-2">
+            {chatHistory.length === 0 ? (
+              <p className="text-center text-muted-foreground italic">
+                {translate("Start a conversation with the AI assistant")}
+              </p>
+            ) : (
+              chatHistory.map((msg, index) => (
                 <div
-                  key={msg.id}
-                  className={`flex ${
-                    msg.isUser ? "justify-end" : "justify-start"
+                  key={index}
+                  className={`p-3 rounded-lg ${
+                    msg.isUser
+                      ? "bg-primary text-primary-foreground ml-12"
+                      : "bg-muted text-muted-foreground mr-12"
                   }`}
                 >
-                  <div
-                    className={`flex max-w-[80%] ${
-                      msg.isUser ? "flex-row-reverse" : "flex-row"
-                    } items-start gap-2`}
-                  >
-                    <Avatar className={msg.isUser ? "bg-primary" : "bg-leaf-600"}>
-                      {msg.isUser ? (
-                        <>
-                          <AvatarFallback>
-                            {user?.email?.charAt(0).toUpperCase() || "U"}
-                          </AvatarFallback>
-                          <AvatarImage src={`https://ui-avatars.com/api/?name=${user?.email?.charAt(0) || "U"}`} />
-                        </>
-                      ) : (
-                        <AvatarFallback>
-                          <img src="/placeholder.svg" alt="AI" className="h-10 w-10" />
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div
-                      className={`rounded-lg px-4 py-3 text-sm ${
-                        msg.isUser
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                      }`}
-                    >
-                      {msg.content.split("\n").map((line, i) => (
-                        <p key={i}>{line || <br />}</p>
-                      ))}
-                    </div>
-                  </div>
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="flex items-start gap-2">
-                    <Avatar className="bg-leaf-600">
-                      <AvatarFallback>
-                        <img src="/placeholder.svg" alt="AI" className="h-10 w-10" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="rounded-lg bg-muted px-4 py-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>{translate("waitingForResponse")}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-      
-      <CardFooter className="px-6 py-4 border-t">
-        <div className="flex w-full items-center space-x-2">
-          <Input
-            placeholder={translate("askMaizeQuestion")}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button
-            onClick={handleSendMessage}
-            disabled={!message.trim() || isLoading}
-            size="icon"
-          >
-            {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
+              ))
             )}
-            <span className="sr-only">{translate("send")}</span>
-          </Button>
-        </div>
-      </CardFooter>
-    </Card>
+            {isProcessing && (
+              <div className="flex items-center justify-center space-x-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <p>{translate("waitingForResponse")}</p>
+              </div>
+            )}
+          </div>
+          <form onSubmit={sendMessage} className="space-y-2">
+            <Textarea
+              placeholder={translate("askMaizeQuestion")}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="min-h-[100px]"
+              disabled={isProcessing}
+            />
+            <Button type="submit" className="w-full" disabled={isProcessing || !message.trim()}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {translate("Processing")}...
+                </>
+              ) : (
+                translate("send")
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="text-sm text-muted-foreground">
+          {translate("The AI assistant uses machine learning to provide farming advice")}
+        </CardFooter>
+      </Card>
+    </div>
   );
-};
+}
