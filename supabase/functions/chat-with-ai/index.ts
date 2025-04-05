@@ -92,8 +92,17 @@ serve(async (req) => {
 
     console.log("Calling Gemini API with language:", language);
     console.log("API Key Used (first 4 chars):", GEMINI_API_KEY.substring(0, 4) + "...");
+    console.log("Request body:", JSON.stringify({
+      contents: conversationHistory,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      }
+    }, null, 2));
 
-    // Call Google's Gemini API with the fixed endpoint and proper request format
+    // Call Google's Gemini API with the proper endpoint and request format
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -114,13 +123,20 @@ serve(async (req) => {
     );
 
     if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.json();
-      console.error("Gemini API error:", errorData);
-      throw new Error(`Gemini API error: ${JSON.stringify(errorData.error || geminiResponse.statusText)}`);
+      const errorText = await geminiResponse.text();
+      console.error("Gemini API error response:", errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error("Parsed error data:", errorData);
+        throw new Error(`Gemini API error: ${JSON.stringify(errorData.error || geminiResponse.statusText)}`);
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+        throw new Error(`Gemini API error: ${geminiResponse.status} ${geminiResponse.statusText}`);
+      }
     }
 
     const responseData = await geminiResponse.json();
-    console.log("Gemini Response received:", responseData.candidates ? "Has candidates" : "No candidates");
+    console.log("Gemini Response received:", JSON.stringify(responseData, null, 2));
     
     let aiResponse = "";
     
@@ -137,12 +153,17 @@ serve(async (req) => {
     
     // Store the chat message and response in the database if userId is provided
     if (userId) {
-      await supabaseClient.from('ai_chats').insert({
-        user_id: userId,
-        user_message: message,
-        ai_response: aiResponse,
-        language: language
-      });
+      try {
+        await supabaseClient.from('ai_chats').insert({
+          user_id: userId,
+          user_message: message,
+          ai_response: aiResponse,
+          language: language
+        });
+      } catch (dbError) {
+        console.error("Error storing chat in database:", dbError);
+        // Continue even if database storage fails
+      }
     }
     
     return new Response(JSON.stringify({ response: aiResponse }), {

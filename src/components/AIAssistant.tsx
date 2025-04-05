@@ -40,15 +40,22 @@ export function AIAssistant() {
       const response = await supabase.functions.invoke('chat-with-ai', {
         body: { 
           message: userMessage,
-          userId: user?.id,
+          userId: user?.id || null, // Handle cases where user might not be logged in
           previousMessages: chatHistory.slice(-5), // Send last 5 messages for context
           language: language // Send the current language preference
         }
       });
       
+      // Check if response has any errors
       if (response.error) {
         console.error("Supabase function error:", response.error);
         throw new Error(response.error.message || "Error processing request");
+      }
+      
+      // Check if the response data is valid
+      if (!response.data || !response.data.response) {
+        console.error("Invalid response format:", response.data);
+        throw new Error("Invalid response from AI assistant");
       }
       
       console.log("AI response received:", response.data);
@@ -73,6 +80,25 @@ export function AIAssistant() {
     }
   };
 
+  // Example message suggestions based on language
+  const getMessageSuggestions = () => {
+    if (language === "english") {
+      return [
+        "How do I identify maize diseases?",
+        "When is the best time to plant maize?",
+        "How can I protect my crops from pests?",
+        "What fertilizer is best for maize farming?"
+      ];
+    } else {
+      return [
+        "Bawo ni mo ṣe le ṣe idamo arun agbado?",
+        "Igba wo ni o dara julọ lati gbin agbado?",
+        "Bawo ni mo ṣe le daabo bo awọn ọka mi lowo kokoro?", 
+        "Eyi tani ilẹ̀ àjèjì ti o dara julọ fun irugbin agbado?"
+      ];
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <Card className="w-full max-w-4xl mx-auto border-2 border-primary/20">
@@ -91,11 +117,23 @@ export function AIAssistant() {
                 <p className="text-muted-foreground">
                   {translate("Start a conversation with the AI assistant")}
                 </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {language === "english" ? 
-                    "Try asking: 'How do I identify maize diseases?' or 'When is the best time to plant maize?'" : 
-                    "Gbiyanju: 'Bawo ni mo ṣe le ṣe idamo arun agbado?' tabi 'Igba wo ni o dara julọ lati gbin agbado?'"}
-                </p>
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm text-muted-foreground font-medium">{translate("Try asking")}:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {getMessageSuggestions().map((suggestion, index) => (
+                      <Button 
+                        key={index}
+                        variant="outline" 
+                        className="text-xs text-left justify-start h-auto py-2 border-dashed"
+                        onClick={() => {
+                          setMessage(suggestion);
+                        }}
+                      >
+                        "{suggestion}"
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               chatHistory.map((msg, index) => (
@@ -132,6 +170,14 @@ export function AIAssistant() {
                 onChange={(e) => setMessage(e.target.value)}
                 className="min-h-[100px] pr-12 resize-none border-2"
                 disabled={isProcessing}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (message.trim()) {
+                      sendMessage(e);
+                    }
+                  }
+                }}
               />
               <Button 
                 type="submit" 
