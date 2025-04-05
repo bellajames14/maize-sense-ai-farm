@@ -92,7 +92,9 @@ serve(async (req) => {
 
     console.log("Calling Gemini API with language:", language);
     console.log("API Key Used (first 4 chars):", GEMINI_API_KEY.substring(0, 4) + "...");
-    console.log("Request body:", JSON.stringify({
+    
+    // Create proper request body
+    const requestBody = {
       contents: conversationHistory,
       generationConfig: {
         temperature: 0.7,
@@ -100,25 +102,19 @@ serve(async (req) => {
         topP: 0.95,
         maxOutputTokens: 1024,
       }
-    }, null, 2));
+    };
+    
+    console.log("Request body:", JSON.stringify(requestBody, null, 2));
 
     // Call Google's Gemini API with the proper endpoint and request format
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          contents: conversationHistory,
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 

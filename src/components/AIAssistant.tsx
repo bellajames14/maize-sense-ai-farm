@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Send, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePreferences } from "@/hooks/usePreferences";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type ChatMessage = {
   content: string;
@@ -18,6 +19,8 @@ export function AIAssistant() {
   const [message, setMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const { translate, language } = usePreferences();
@@ -46,6 +49,8 @@ export function AIAssistant() {
         }
       });
       
+      console.log("Response from chat-with-ai function:", response);
+      
       // Check if response has any errors
       if (response.error) {
         console.error("Supabase function error:", response.error);
@@ -55,7 +60,13 @@ export function AIAssistant() {
       // Check if the response data is valid
       if (!response.data || !response.data.response) {
         console.error("Invalid response format:", response.data);
-        throw new Error("Invalid response from AI assistant");
+        if (response.data && response.data.error) {
+          setErrorDetails(JSON.stringify(response.data.error, null, 2));
+          throw new Error(response.data.error);
+        } else {
+          setErrorDetails("No valid response data received from the AI service");
+          throw new Error("Invalid response from AI assistant");
+        }
       }
       
       console.log("AI response received:", response.data);
@@ -64,9 +75,17 @@ export function AIAssistant() {
       setChatHistory((prev) => [...prev, { content: response.data.response, isUser: false }]);
     } catch (error: any) {
       console.error("Error sending message:", error);
+      
+      let errorMessage = typeof error === "string" ? error : (error.message || translate("Failed to process your request"));
+      
+      if (error.message?.includes("Gemini API error")) {
+        errorMessage = translate("AI service error. Please try again later.");
+        setErrorDetails(error.message);
+      }
+      
       toast({
         title: translate("Error"),
-        description: typeof error === "string" ? error : translate("Failed to process your request"),
+        description: errorMessage,
         variant: "destructive",
       });
       
@@ -194,6 +213,18 @@ export function AIAssistant() {
           {translate("The AI assistant uses machine learning to provide farming advice")}
         </CardFooter>
       </Card>
+
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{translate("Error Details")}</DialogTitle>
+          </DialogHeader>
+          <div className="bg-muted/20 p-4 rounded-md overflow-auto max-h-[400px]">
+            <pre className="text-xs">{errorDetails}</pre>
+          </div>
+          <Button onClick={() => setShowErrorDialog(false)}>{translate("Close")}</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
