@@ -91,24 +91,25 @@ serve(async (req) => {
     ];
 
     console.log("Calling Gemini API with language:", language);
-    console.log("API Key Used (first 4 chars):", GEMINI_API_KEY.substring(0, 4) + "...");
     
-    // Create proper request body
+    // Create proper request body for the latest Gemini model
     const requestBody = {
       contents: conversationHistory,
       generationConfig: {
         temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 800,
       }
     };
     
-    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    console.log("Request body structure:", JSON.stringify({
+      contents: [{role: "model", parts: [{text: "system prompt"}]}, 
+                {role: "user", parts: [{text: "example message"}]}],
+      generationConfig: requestBody.generationConfig
+    }));
 
-    // Call Google's Gemini API with the proper endpoint and request format
+    // Call Google's Gemini API
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -121,23 +122,22 @@ serve(async (req) => {
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
       console.error("Gemini API error response:", errorText);
-      try {
-        const errorData = JSON.parse(errorText);
-        console.error("Parsed error data:", errorData);
-        throw new Error(`Gemini API error: ${JSON.stringify(errorData.error || geminiResponse.statusText)}`);
-      } catch (parseError) {
-        console.error("Error parsing error response:", parseError);
-        throw new Error(`Gemini API error: ${geminiResponse.status} ${geminiResponse.statusText}`);
-      }
+      throw new Error(`Gemini API error: ${geminiResponse.status} ${geminiResponse.statusText} - ${errorText}`);
     }
 
     const responseData = await geminiResponse.json();
-    console.log("Gemini Response received:", JSON.stringify(responseData, null, 2));
+    console.log("Gemini response structure:", JSON.stringify({
+      candidates: responseData.candidates ? [{content: {parts: [{text: "example content"}]}}] : "no candidates",
+      promptFeedback: responseData.promptFeedback ? "exists" : "none"
+    }));
     
     let aiResponse = "";
     
-    if (responseData.candidates && responseData.candidates.length > 0 && 
-        responseData.candidates[0].content && responseData.candidates[0].content.parts) {
+    if (responseData.candidates && 
+        responseData.candidates.length > 0 && 
+        responseData.candidates[0].content && 
+        responseData.candidates[0].content.parts && 
+        responseData.candidates[0].content.parts.length > 0) {
       aiResponse = responseData.candidates[0].content.parts[0].text;
     } else {
       console.error("Unexpected response format:", JSON.stringify(responseData));
@@ -168,7 +168,10 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error processing AI chat:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Unknown error occurred" }),
+      JSON.stringify({ 
+        error: error.message || "Unknown error occurred",
+        errorDetails: error.toString() 
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

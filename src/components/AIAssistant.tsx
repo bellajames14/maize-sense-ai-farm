@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Send, MessageCircle } from "lucide-react";
+import { Loader2, Send, MessageCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -38,18 +38,18 @@ export function AIAssistant() {
     setIsProcessing(true);
     
     try {
-      console.log(`Sending message to AI in ${language} language`);
+      console.log(`Sending message to AI in ${language} language: "${userMessage}"`);
       
       const response = await supabase.functions.invoke('chat-with-ai', {
         body: { 
           message: userMessage,
-          userId: user?.id || null, // Handle cases where user might not be logged in
+          userId: user?.id || null,
           previousMessages: chatHistory.slice(-5), // Send last 5 messages for context
           language: language // Send the current language preference
         }
       });
       
-      console.log("Response from chat-with-ai function:", response);
+      console.log("Raw response from chat-with-ai function:", response);
       
       // Check if response has any errors
       if (response.error) {
@@ -57,19 +57,20 @@ export function AIAssistant() {
         throw new Error(response.error.message || "Error processing request");
       }
       
+      // Check if the response data contains an error field
+      if (response.data && response.data.error) {
+        setErrorDetails(JSON.stringify(response.data, null, 2));
+        throw new Error(response.data.error);
+      }
+      
       // Check if the response data is valid
       if (!response.data || !response.data.response) {
         console.error("Invalid response format:", response.data);
-        if (response.data && response.data.error) {
-          setErrorDetails(JSON.stringify(response.data.error, null, 2));
-          throw new Error(response.data.error);
-        } else {
-          setErrorDetails("No valid response data received from the AI service");
-          throw new Error("Invalid response from AI assistant");
-        }
+        setErrorDetails(JSON.stringify(response.data, null, 2));
+        throw new Error("Invalid response from AI assistant");
       }
       
-      console.log("AI response received:", response.data);
+      console.log("AI response received:", response.data.response.substring(0, 50) + "...");
       
       // Add AI response to chat history
       setChatHistory((prev) => [...prev, { content: response.data.response, isUser: false }]);
@@ -78,10 +79,7 @@ export function AIAssistant() {
       
       let errorMessage = typeof error === "string" ? error : (error.message || translate("Failed to process your request"));
       
-      if (error.message?.includes("Gemini API error")) {
-        errorMessage = translate("AI service error. Please try again later.");
-        setErrorDetails(error.message);
-      }
+      setErrorDetails(JSON.stringify(error, null, 2));
       
       toast({
         title: translate("Error"),
@@ -208,6 +206,15 @@ export function AIAssistant() {
               </Button>
             </div>
           </form>
+          {errorDetails && (
+            <div className="mt-4 p-2 border border-destructive/40 bg-destructive/10 rounded-md">
+              <div className="flex items-center gap-2 text-sm text-destructive cursor-pointer" 
+                   onClick={() => setShowErrorDialog(true)}>
+                <AlertCircle className="h-4 w-4" />
+                <span>{translate("Error occurred")} - {translate("Click to see details")}</span>
+              </div>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="text-sm text-muted-foreground bg-muted/30 border-t">
           {translate("The AI assistant uses machine learning to provide farming advice")}
