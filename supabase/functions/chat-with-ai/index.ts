@@ -72,7 +72,7 @@ function cleanTextForFarmers(text) {
   // Replace complex words (could be expanded in a production environment)
   const simpleWordReplacements = {
     "fertilizer": "plant food",
-    "pesticide": "bug killer",
+    "pesticide": "bug spray",
     "herbicide": "weed killer",
     "fungicide": "plant medicine",
     "irrigation": "watering",
@@ -83,13 +83,18 @@ function cleanTextForFarmers(text) {
     "implement": "use",
     "appropriate": "right",
     "sufficient": "enough",
-    "immediately": "right away",
+    "immediately": "now",
     "subsequently": "after that",
     "approximately": "about",
     "significantly": "a lot",
     "initiate": "start",
     "terminate": "end",
-    "commence": "begin"
+    "commence": "begin",
+    "nitrogen": "plant food",
+    "nutrient deficiency": "not enough food for plants",
+    "dormant": "sleeping",
+    "propagation": "growing new plants",
+    "germination": "seed starting"
   };
   
   // Apply word replacements

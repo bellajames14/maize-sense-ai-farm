@@ -56,23 +56,28 @@ serve(async (req) => {
     const data = await response.json();
     console.log("Image uploaded successfully:", data.data[0].url);
 
-    // Use Gemini Vision to analyze the maize disease
-    const diseaseResults = await analyzeMaizeDiseaseWithGemini(data.data[0].url);
+    // Use Gemini Vision to analyze the crop disease
+    const diseaseResults = await analyzeCropDiseaseWithGemini(data.data[0].url);
     
     // Create Supabase client
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // Store the scan result in the database if userId is provided
     if (userId) {
-      await supabaseClient.from('scans').insert({
-        user_id: userId,
-        image_url: data.data[0].url,
-        disease_name: diseaseResults.disease,
-        confidence: diseaseResults.confidence,
-        affected_area_estimate: diseaseResults.affectedArea,
-        treatment_tips: diseaseResults.treatment,
-        prevention_tips: diseaseResults.prevention
-      });
+      try {
+        await supabaseClient.from('scans').insert({
+          user_id: userId,
+          image_url: data.data[0].url,
+          disease_name: diseaseResults.disease,
+          confidence: diseaseResults.confidence,
+          affected_area_estimate: diseaseResults.affectedArea,
+          treatment_tips: diseaseResults.treatment,
+          prevention_tips: diseaseResults.prevention
+        });
+        console.log("Scan results saved to database for user:", userId);
+      } catch (dbError) {
+        console.error("Error saving scan to database:", dbError);
+      }
     }
     
     return new Response(JSON.stringify({
@@ -82,7 +87,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Error uploading image:", error);
+    console.error("Error processing image:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -90,41 +95,42 @@ serve(async (req) => {
   }
 });
 
-// Analyze maize disease using Gemini Vision API
-async function analyzeMaizeDiseaseWithGemini(imageUrl) {
+// Analyze crop disease using Gemini Vision API
+async function analyzeCropDiseaseWithGemini(imageUrl) {
   try {
-    console.log("Analyzing image with Gemini Vision:", imageUrl);
+    console.log("Analyzing crop image with Gemini Vision:", imageUrl);
     
     // Fetch the image and convert to base64
     const imageResponse = await fetch(imageUrl);
     const imageBuffer = await imageResponse.arrayBuffer();
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
     
-    // Prepare the prompt for Gemini that emphasizes farmer-friendly responses
+    // Prepare the prompt for Gemini with special focus on crop diseases
     const prompt = `
-      Analyze this maize plant image for diseases using simple, farmer-friendly language.
+      Analyze this crop image for diseases. You are a farming expert helping farmers who may not have much formal education.
       
-      If you see any disease:
-      1. Use simple words to describe what's wrong (like "spots on leaves" instead of technical disease names)
-      2. Be VERY CONFIDENT in your assessment - farmers need clear guidance
-      3. Give simple treatment suggestions using locally available solutions
-      4. Suggest prevention tips that don't require expensive equipment
+      IMPORTANT:
+      1. Identify if there's any disease visible in the crop (focus on common crop diseases)
+      2. Use very simple language - avoid technical terms completely
+      3. Be very specific about what you see - "brown spots on leaves" instead of "leaf spot disease"
+      4. Give practical treatment options using basic tools and locally available items
+      5. Do NOT use asterisks (*) or any special formatting in your response
       
-      Format your response as JSON with these fields:
+      Please format your response as plain JSON with these fields:
       {
-        "disease": "Simple name of problem or 'Healthy'",
-        "confidence": 95,
-        "affectedArea": "30%",
-        "treatment": "Simple, step-by-step treatment instructions using available resources",
-        "prevention": "Easy-to-follow prevention tips using simple language"
+        "disease": "Simple name of the problem or 'Healthy' if no disease found",
+        "confidence": number between 50-100,
+        "affectedArea": "Which part of plant is affected and how much (like 25%)",
+        "treatment": "Simple step-by-step treatment instructions",
+        "prevention": "Basic prevention tips"
       }
       
-      IMPORTANT: Keep all explanations brief, clear, and actionable. Use language a farmer with minimal education can understand.
+      Keep all explanations brief and use very simple language suitable for farmers with minimal education.
     `;
     
     // Call Gemini Vision API
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -145,7 +151,7 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
             }
           ],
           generation_config: {
-            temperature: 0.4,
+            temperature: 0.2,
             topK: 32,
             topP: 1,
           }
@@ -155,8 +161,8 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
     
     if (!geminiResponse.ok) {
       const errorData = await geminiResponse.json();
-      console.error("Gemini Vision API error:", errorData);
-      throw new Error(`Gemini Vision API error: ${JSON.stringify(errorData)}`);
+      console.error("Gemini Vision API error response:", errorData);
+      throw new Error(`Gemini Vision API error: ${errorData?.error?.message || geminiResponse.statusText}`);
     }
     
     const responseData = await geminiResponse.json();
@@ -164,6 +170,7 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
     
     // Extract the text from the response
     if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
+      console.error("Unexpected response format:", JSON.stringify(responseData));
       throw new Error("Unexpected response format from Gemini Vision API");
     }
     
@@ -180,6 +187,7 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
       try {
         const jsonText = jsonMatch[0].replace(/```json|```/g, '').trim();
         diseaseData = JSON.parse(jsonText);
+        console.log("Successfully parsed disease data:", diseaseData);
       } catch (e) {
         console.error("Failed to parse JSON from Gemini:", e);
         // Fall back to extraction from text
@@ -189,13 +197,26 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
       // Fall back to extraction from text
       diseaseData = extractDiseaseDataFromText(analysisText);
     }
+
+    // Clean any asterisks or special formatting from the text fields
+    if (diseaseData.treatment) {
+      diseaseData.treatment = cleanTextForFarmers(diseaseData.treatment);
+    }
+    
+    if (diseaseData.prevention) {
+      diseaseData.prevention = cleanTextForFarmers(diseaseData.prevention);
+    }
+    
+    if (diseaseData.disease) {
+      diseaseData.disease = cleanTextForFarmers(diseaseData.disease);
+    }
     
     return {
       disease: diseaseData.disease || "Unknown",
       confidence: parseFloat(diseaseData.confidence) || 85,
       affectedArea: diseaseData.affectedArea || "25%",
-      treatment: diseaseData.treatment || "Consult with a local agricultural extension officer.",
-      prevention: diseaseData.prevention || "Implement crop rotation and ensure proper plant spacing."
+      treatment: diseaseData.treatment || "Consult with a local agriculture helper.",
+      prevention: diseaseData.prevention || "Keep plants spaced well and water at the base, not on leaves."
     };
     
   } catch (error) {
@@ -204,25 +225,28 @@ async function analyzeMaizeDiseaseWithGemini(imageUrl) {
       disease: "Analysis Error",
       confidence: 0,
       affectedArea: "Unknown",
-      treatment: "Unable to analyze the image. Please try again with a clearer photo.",
-      prevention: "Ensure good lighting and focus when taking photos of plants for diagnosis."
+      treatment: "We couldn't analyze your image. Please try again with a clearer photo.",
+      prevention: "Take photos in good light and make sure the plant is clearly visible."
     };
   }
 }
 
 // Helper function to extract disease data from text when JSON parsing fails
 function extractDiseaseDataFromText(text) {
+  console.log("Extracting disease data from text:", text);
+  
   const result = {
     disease: "Unknown",
     confidence: 85,
     affectedArea: "25%",
-    treatment: "Consult with a local agricultural extension officer.",
-    prevention: "Implement crop rotation and ensure proper plant spacing."
+    treatment: "Consult with a local agriculture helper.",
+    prevention: "Keep plants spaced well and water at the base, not on leaves."
   };
   
   // Try to extract disease name
   const diseaseMatch = text.match(/Disease:?\s*([^,.]*)/i) || 
-                       text.match(/disease name:?\s*([^,.]*)/i);
+                       text.match(/disease name:?\s*([^,.]*)/i) ||
+                       text.match(/problem:?\s*([^,.]*)/i);
   if (diseaseMatch) result.disease = diseaseMatch[1].trim();
   
   // If "healthy" is mentioned, set as healthy
@@ -230,18 +254,20 @@ function extractDiseaseDataFromText(text) {
     result.disease = "Healthy";
     result.confidence = 95;
     result.affectedArea = "0%";
-    result.treatment = "No treatment necessary. Continue regular maintenance.";
-    result.prevention = "Maintain regular fertilization, proper irrigation, and pest monitoring.";
+    result.treatment = "No treatment needed. Your plant looks good.";
+    result.prevention = "Keep taking good care of your plants as you have been.";
   }
   
   // Try to extract confidence
   const confidenceMatch = text.match(/confidence:?\s*(\d+)/i) ||
-                         text.match(/(\d+)%\s*confidence/i);
+                         text.match(/(\d+)%\s*confidence/i) ||
+                         text.match(/(\d+)%\s*sure/i);
   if (confidenceMatch) result.confidence = parseInt(confidenceMatch[1]);
   
   // Try to extract affected area
   const areaMatch = text.match(/affected area:?\s*(\d+%)/i) ||
-                    text.match(/(\d+)%\s*of the plant/i);
+                    text.match(/(\d+)%\s*of the plant/i) ||
+                    text.match(/about (\d+)%/i);
   if (areaMatch) result.affectedArea = areaMatch[1];
   
   // Try to extract treatment
@@ -252,5 +278,52 @@ function extractDiseaseDataFromText(text) {
   const preventionMatch = text.match(/[Pp]revention:?\s*([^.]*\.)/);
   if (preventionMatch) result.prevention = preventionMatch[1].trim();
   
+  console.log("Extracted disease data:", result);
   return result;
+}
+
+// Clean text by removing asterisks and markdown formatting
+function cleanTextForFarmers(text) {
+  if (!text) return text;
+  
+  // Remove asterisks used for emphasis
+  let cleanedText = text.replace(/\*\*?(.*?)\*\*?/g, "$1");
+  
+  // Replace markdown bullet points with simple dashes
+  cleanedText = cleanedText.replace(/\* /g, "- ");
+  
+  // Replace complex words with simpler alternatives
+  const simpleWordReplacements = {
+    "fertilizer": "plant food",
+    "pesticide": "bug spray",
+    "herbicide": "weed killer",
+    "fungicide": "plant medicine",
+    "irrigation": "watering",
+    "cultivation": "growing",
+    "precipitation": "rain",
+    "utilize": "use",
+    "implement": "use",
+    "appropriate": "right",
+    "sufficient": "enough",
+    "immediately": "now",
+    "subsequently": "after that",
+    "approximately": "about",
+    "significantly": "a lot",
+    "initiate": "start",
+    "terminate": "end",
+    "commence": "begin",
+    "nitrogen": "plant food",
+    "nutrient deficiency": "not enough food for plants",
+    "dormant": "sleeping",
+    "propagation": "growing new plants",
+    "germination": "seed starting"
+  };
+  
+  // Apply word replacements
+  Object.keys(simpleWordReplacements).forEach(complexWord => {
+    const regex = new RegExp(`\\b${complexWord}\\b`, "gi");
+    cleanedText = cleanedText.replace(regex, simpleWordReplacements[complexWord]);
+  });
+  
+  return cleanedText;
 }
