@@ -69,9 +69,9 @@ export const DiseaseDetection = () => {
       // Call our Supabase Edge Function to upload and analyze the image
       const { data, error } = await supabase.functions.invoke('upload-image', {
         body: { 
+          fileData: previewUrl,
           fileName: selectedFile.name,
           fileType: selectedFile.type,
-          fileUrl: previewUrl,
           userId: user?.id || null
         },
       });

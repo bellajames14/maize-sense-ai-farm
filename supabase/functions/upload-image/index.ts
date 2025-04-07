@@ -5,8 +5,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://sfsdfdcdethqjwtjrwpz.supabase.co";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmc2RmZGNkZXRocWp3dGpyd3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NzU1NDAsImV4cCI6MjA1OTI1MTU0MH0.o-LLkQhEW7QJhVPyrZKoNYOMHKNIGH_5NWMTnMILqKs";
-const UPLOADTHING_SECRET = Deno.env.get("UPLOADTHING_SECRET") || "sk_live_96f3f998cb1e07b7bb75b58cb03e04059830b4012f74999e7c3465da4a7bac75";
-const UPLOADTHING_APP_ID = Deno.env.get("UPLOADTHING_APP_ID") || "12wli5d86w";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyCySmGu1aMdenR6_EwhN4tJMCnJhLhHKkw";
 
 const corsHeaders = {
@@ -21,53 +20,80 @@ serve(async (req) => {
   }
 
   try {
-    const { fileUrl, fileName, fileType, userId } = await req.json();
+    const { fileData, fileName, fileType, userId } = await req.json();
     
-    if (!fileUrl || !fileName || !fileType) {
+    if (!fileData || !fileName || !fileType) {
       throw new Error("Missing required file information");
     }
     
     console.log("Processing image upload:", fileName);
     
-    // Create a proxy to UploadThing API
-    const response = await fetch("https://uploadthing.com/api/uploadFiles", {
-      method: "POST",
-      headers: {
-        "X-UploadThing-API-Key": UPLOADTHING_SECRET,
-        "X-UploadThing-App-Id": UPLOADTHING_APP_ID,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        files: [
-          {
-            name: fileName,
-            type: fileType,
-            url: fileUrl
-          }
-        ]
-      })
-    });
+    // Create Supabase clients - one with anon key for basic operations
+    // and one with service role for admin operations if needed
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY ? 
+      createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : 
+      supabaseClient;
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`UploadThing API error: ${errorData?.error || response.status}`);
+    // Create a storage bucket if it doesn't exist (requires admin)
+    try {
+      const { data: buckets } = await supabaseAdmin
+        .from('storage')
+        .select('name')
+        .eq('name', 'maize_images')
+        .single();
+      
+      if (!buckets) {
+        await supabaseAdmin.storage.createBucket('maize_images', {
+          public: true,
+          fileSizeLimit: 5242880 // 5MB
+        });
+        console.log("Created maize_images bucket");
+      }
+    } catch (error) {
+      // Bucket might already exist, that's fine
+      console.log("Bucket check/creation error (might already exist):", error.message);
     }
     
-    const data = await response.json();
-    console.log("Image uploaded successfully:", data.data[0].url);
-
-    // Use Gemini Vision to analyze the crop disease
-    const diseaseResults = await analyzeCropDiseaseWithGemini(data.data[0].url);
+    // Extract the base64 data (remove the "data:image/jpeg;base64," part)
+    const base64Data = fileData.split(',')[1];
     
-    // Create Supabase client
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Convert base64 to binary
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    
+    // Generate a unique file path
+    const timestamp = new Date().getTime();
+    const uniqueFilePath = `${userId || 'anonymous'}_${timestamp}_${fileName}`;
+    
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+      .from('maize_images')
+      .upload(uniqueFilePath, binaryData, {
+        contentType: fileType,
+        upsert: true
+      });
+    
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
+    }
+    
+    console.log("Image uploaded successfully to Supabase Storage");
+    
+    // Get the public URL for the uploaded file
+    const { data: { publicUrl } } = supabaseClient.storage
+      .from('maize_images')
+      .getPublicUrl(uniqueFilePath);
+    
+    // Use Gemini Vision to analyze the crop disease with the public URL
+    const diseaseResults = await analyzeCropDiseaseWithGemini(publicUrl);
     
     // Store the scan result in the database if userId is provided
     if (userId) {
       try {
         await supabaseClient.from('scans').insert({
           user_id: userId,
-          image_url: data.data[0].url,
+          image_url: publicUrl,
           disease_name: diseaseResults.disease,
           confidence: diseaseResults.confidence,
           affected_area_estimate: diseaseResults.affectedArea,
@@ -81,7 +107,7 @@ serve(async (req) => {
     }
     
     return new Response(JSON.stringify({
-      uploadResult: data,
+      imageUrl: publicUrl,
       diseaseAnalysis: diseaseResults
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
