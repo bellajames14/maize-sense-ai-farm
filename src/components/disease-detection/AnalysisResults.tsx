@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, Upload, Save, Database } from "lucide-react";
+import { AlertCircle, Upload, Save, Database, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface DiseaseAnalysisResult {
@@ -17,6 +17,7 @@ interface AnalysisResultsProps {
   isAnalyzing: boolean;
   uploadProgress: number;
   analysisResult: DiseaseAnalysisResult | null;
+  analysisError: string | null;
   onSaveResults: () => Promise<void>;
   onReset: () => void;
 }
@@ -25,6 +26,7 @@ export const AnalysisResults = ({
   isAnalyzing,
   uploadProgress,
   analysisResult,
+  analysisError,
   onSaveResults,
   onReset,
 }: AnalysisResultsProps) => {
@@ -32,7 +34,16 @@ export const AnalysisResults = ({
 
   return (
     <div className="space-y-4">
-      {!analysisResult && !isAnalyzing ? (
+      {analysisError && !isAnalyzing ? (
+        <div className="flex flex-col items-center justify-center space-y-4 p-4">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Analysis Error</AlertTitle>
+            <AlertDescription>{analysisError}</AlertDescription>
+          </Alert>
+          <Button onClick={onReset} variant="outline">Try Again</Button>
+        </div>
+      ) : !analysisResult && !isAnalyzing ? (
         <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground">
           <AlertCircle className="h-10 w-10 mb-4" />
           <p>No analysis results yet</p>
@@ -74,7 +85,7 @@ export const AnalysisResults = ({
       )}
 
       <div className="flex justify-between mt-4">
-        <Button variant="outline" onClick={onReset} disabled={!analysisResult}>
+        <Button variant="outline" onClick={onReset} disabled={!analysisResult && !analysisError}>
           Reset
         </Button>
         <Button 

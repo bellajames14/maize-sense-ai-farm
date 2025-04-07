@@ -9,9 +9,16 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
     console.log("Analyzing crop image with Gemini Vision:", imageUrl);
     
     // Fetch the image and convert to base64
+    console.log("Fetching image from URL");
     const imageResponse = await fetch(imageUrl);
+    
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
+    
     const imageBuffer = await imageResponse.arrayBuffer();
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    console.log("Image successfully converted to base64");
     
     // Prepare the prompt for Gemini with special focus on crop diseases
     const prompt = `
@@ -36,6 +43,7 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
       Keep all explanations brief and use very simple language suitable for farmers with minimal education.
     `;
     
+    console.log("Sending request to Gemini API");
     // Call Gemini Vision API
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -67,14 +75,16 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
       }
     );
     
+    console.log("Received response from Gemini API, status:", geminiResponse.status);
+    
     if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.json();
-      console.error("Gemini Vision API error response:", errorData);
-      throw new Error(`Gemini Vision API error: ${errorData?.error?.message || geminiResponse.statusText}`);
+      const errorText = await geminiResponse.text();
+      console.error("Gemini Vision API error response:", errorText);
+      throw new Error(`Gemini Vision API error: ${geminiResponse.status} ${geminiResponse.statusText}`);
     }
     
     const responseData = await geminiResponse.json();
-    console.log("Gemini Vision response received");
+    console.log("Gemini Vision response parsed successfully");
     
     // Extract the text from the response
     if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
@@ -83,6 +93,7 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
     }
     
     const analysisText = responseData.candidates[0].content.parts[0].text;
+    console.log("Analysis text extracted:", analysisText.substring(0, 100) + "...");
     
     // Extract the JSON from the response text
     let jsonMatch = analysisText.match(/```json\s*([\s\S]*?)\s*```/) || 
@@ -95,14 +106,16 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
       try {
         const jsonText = jsonMatch[0].replace(/```json|```/g, '').trim();
         diseaseData = JSON.parse(jsonText);
-        console.log("Successfully parsed disease data:", diseaseData);
+        console.log("Successfully parsed disease data from JSON");
       } catch (e) {
         console.error("Failed to parse JSON from Gemini:", e);
         // Fall back to extraction from text
+        console.log("Falling back to text extraction");
         diseaseData = extractDiseaseDataFromText(analysisText);
       }
     } else {
       // Fall back to extraction from text
+      console.log("No JSON found, falling back to text extraction");
       diseaseData = extractDiseaseDataFromText(analysisText);
     }
 
@@ -119,13 +132,16 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
       diseaseData.disease = cleanTextForFarmers(diseaseData.disease);
     }
     
-    return {
+    const result = {
       disease: diseaseData.disease || "Unknown",
       confidence: parseFloat(diseaseData.confidence) || 85,
       affectedArea: diseaseData.affectedArea || "25%",
       treatment: diseaseData.treatment || "Consult with a local agriculture helper.",
       prevention: diseaseData.prevention || "Keep plants spaced well and water at the base, not on leaves."
     };
+    
+    console.log("Final analysis result:", result);
+    return result;
     
   } catch (error) {
     console.error("Error analyzing image with Gemini:", error);
@@ -141,7 +157,7 @@ export async function analyzeCropDiseaseWithGemini(imageUrl: string) {
 
 // Helper function to extract disease data from text when JSON parsing fails
 function extractDiseaseDataFromText(text: string) {
-  console.log("Extracting disease data from text:", text);
+  console.log("Extracting disease data from text");
   
   const result = {
     disease: "Unknown",

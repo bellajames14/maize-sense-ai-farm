@@ -12,39 +12,53 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Received request to analyze image");
+    
     const { fileData, fileName, fileType, userId } = await req.json();
     
     if (!fileData || !fileName || !fileType) {
+      console.error("Missing required file information");
       throw new Error("Missing required file information");
     }
     
     console.log("Processing image upload:", fileName);
     
-    // Upload to Supabase Storage and get public URL
-    const { publicUrl, uniqueFilePath } = await uploadImageToStorage(fileData, fileName, fileType, userId);
-    
-    console.log("Image uploaded successfully to Supabase Storage");
-    
-    // Use Gemini Vision to analyze the crop disease with the public URL
-    const diseaseResults = await analyzeCropDiseaseWithGemini(publicUrl);
-    
-    // Store the scan result in the database if userId is provided
-    if (userId) {
-      await saveScanResult(userId, publicUrl, diseaseResults);
-      console.log("Scan results saved to database for user:", userId);
+    try {
+      // Upload to Supabase Storage and get public URL
+      const { publicUrl, uniqueFilePath } = await uploadImageToStorage(fileData, fileName, fileType, userId);
+      
+      console.log("Image uploaded successfully to Supabase Storage at:", publicUrl);
+      
+      // Use Gemini Vision to analyze the crop disease with the public URL
+      const diseaseResults = await analyzeCropDiseaseWithGemini(publicUrl);
+      console.log("Analysis completed successfully:", diseaseResults);
+      
+      // Store the scan result in the database if userId is provided
+      if (userId) {
+        await saveScanResult(userId, publicUrl, diseaseResults);
+        console.log("Scan results saved to database for user:", userId);
+      }
+      
+      return new Response(JSON.stringify({
+        imageUrl: publicUrl,
+        diseaseAnalysis: diseaseResults
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (innerError) {
+      console.error("Error in processing:", innerError);
+      throw innerError;
     }
-    
-    return new Response(JSON.stringify({
-      imageUrl: publicUrl,
-      diseaseAnalysis: diseaseResults
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (error) {
     console.error("Error processing image:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: error.message || "An unknown error occurred during image analysis" 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 });

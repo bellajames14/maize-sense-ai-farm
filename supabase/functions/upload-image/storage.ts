@@ -12,6 +12,7 @@ export async function uploadImageToStorage(
   fileType: string,
   userId: string | null
 ) {
+  console.log("Starting image upload to Supabase Storage");
   // Create Supabase clients - one with anon key for basic operations
   // and one with service role for admin operations if needed
   const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -19,53 +20,76 @@ export async function uploadImageToStorage(
     createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : 
     supabaseClient;
   
-  // Create a storage bucket if it doesn't exist (requires admin)
   try {
-    const { data: buckets } = await supabaseAdmin
-      .from('storage')
-      .select('name')
-      .eq('name', 'maize_images')
-      .single();
-    
-    if (!buckets) {
-      await supabaseAdmin.storage.createBucket('maize_images', {
-        public: true,
-        fileSizeLimit: 5242880 // 5MB
-      });
-      console.log("Created maize_images bucket");
+    // Create a storage bucket if it doesn't exist (requires admin)
+    console.log("Checking if maize_images bucket exists");
+    try {
+      const { data: buckets, error } = await supabaseAdmin
+        .storage
+        .listBuckets();
+      
+      if (error) {
+        throw new Error(`Error listing buckets: ${error.message}`);
+      }
+      
+      const bucketExists = buckets.some(bucket => bucket.name === 'maize_images');
+      
+      if (!bucketExists) {
+        console.log("Creating maize_images bucket");
+        const { error: createError } = await supabaseAdmin.storage.createBucket('maize_images', {
+          public: true,
+          fileSizeLimit: 5242880 // 5MB
+        });
+        
+        if (createError) {
+          throw new Error(`Error creating bucket: ${createError.message}`);
+        }
+        console.log("Created maize_images bucket successfully");
+      } else {
+        console.log("maize_images bucket already exists");
+      }
+    } catch (bucketError) {
+      console.error("Bucket check/creation error:", bucketError);
     }
-  } catch (error) {
-    // Bucket might already exist, that's fine
-    console.log("Bucket check/creation error (might already exist):", error.message);
-  }
-  
-  // Extract the base64 data (remove the "data:image/jpeg;base64," part)
-  const base64Data = fileData.split(',')[1];
-  
-  // Convert base64 to binary
-  const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-  
-  // Generate a unique file path
-  const timestamp = new Date().getTime();
-  const uniqueFilePath = `${userId || 'anonymous'}_${timestamp}_${fileName}`;
-  
-  // Upload to Supabase Storage
-  const { data: uploadData, error: uploadError } = await supabaseClient.storage
-    .from('maize_images')
-    .upload(uniqueFilePath, binaryData, {
-      contentType: fileType,
-      upsert: true
-    });
-  
-  if (uploadError) {
-    console.error("Storage upload error:", uploadError);
-    throw new Error(`Storage upload failed: ${uploadError.message}`);
-  }
-  
-  // Get the public URL for the uploaded file
-  const { data: { publicUrl } } = supabaseClient.storage
-    .from('maize_images')
-    .getPublicUrl(uniqueFilePath);
     
-  return { publicUrl, uniqueFilePath };
+    // Extract the base64 data (remove the "data:image/jpeg;base64," part)
+    console.log("Processing image data");
+    const base64Data = fileData.split(',')[1];
+    if (!base64Data) {
+      throw new Error("Invalid image data format");
+    }
+    
+    // Convert base64 to binary
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    
+    // Generate a unique file path
+    const timestamp = new Date().getTime();
+    const uniqueFilePath = `${userId || 'anonymous'}_${timestamp}_${fileName}`;
+    
+    console.log(`Uploading image to path: ${uniqueFilePath}`);
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+      .from('maize_images')
+      .upload(uniqueFilePath, binaryData, {
+        contentType: fileType,
+        upsert: true
+      });
+    
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
+    }
+    
+    console.log("Image uploaded successfully, getting public URL");
+    // Get the public URL for the uploaded file
+    const { data: { publicUrl } } = supabaseClient.storage
+      .from('maize_images')
+      .getPublicUrl(uniqueFilePath);
+      
+    console.log(`Public URL generated: ${publicUrl}`);
+    return { publicUrl, uniqueFilePath };
+  } catch (error) {
+    console.error("Error in uploadImageToStorage:", error);
+    throw error;
+  }
 }

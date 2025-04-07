@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ export const DiseaseDetection = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<DiseaseAnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -25,6 +26,7 @@ export const DiseaseDetection = () => {
       };
       fileReader.readAsDataURL(file);
       setAnalysisResult(null);
+      setAnalysisError(null);
     }
   };
 
@@ -33,6 +35,7 @@ export const DiseaseDetection = () => {
     
     setIsAnalyzing(true);
     setUploadProgress(0);
+    setAnalysisError(null);
     
     try {
       // Simulate upload progress
@@ -46,6 +49,7 @@ export const DiseaseDetection = () => {
         });
       }, 300);
       
+      console.log("Calling upload-image edge function");
       // Call our Supabase Edge Function to upload and analyze the image
       const { data, error } = await supabase.functions.invoke('upload-image', {
         body: { 
@@ -56,16 +60,19 @@ export const DiseaseDetection = () => {
         },
       });
       
-      if (error) {
-        throw error;
-      }
-      
       // Complete the progress bar
       clearInterval(progressInterval);
+      
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(`Analysis failed: ${error.message || "Unknown error"}`);
+      }
+      
+      console.log("Received analysis response:", data);
       setUploadProgress(100);
       
       // Extract disease analysis results
-      if (data.diseaseAnalysis) {
+      if (data && data.diseaseAnalysis) {
         setAnalysisResult(data.diseaseAnalysis);
         
         // Show success toast
@@ -74,13 +81,15 @@ export const DiseaseDetection = () => {
           description: `Detected: ${data.diseaseAnalysis.disease} with ${data.diseaseAnalysis.confidence}% confidence`,
         });
       } else {
-        throw new Error("No analysis results returned");
+        throw new Error("No analysis results returned from server");
       }
     } catch (error) {
       console.error("Error analyzing image:", error);
+      setAnalysisError(error instanceof Error ? error.message : "An unknown error occurred");
+      
       toast({
         title: "Analysis failed",
-        description: "There was a problem analyzing your image. Please try again.",
+        description: error instanceof Error ? error.message : "There was a problem analyzing your image. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -119,6 +128,7 @@ export const DiseaseDetection = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setAnalysisResult(null);
+    setAnalysisError(null);
     setUploadProgress(0);
   };
 
@@ -150,7 +160,9 @@ export const DiseaseDetection = () => {
           <CardDescription>
             {analysisResult 
               ? "Disease detection results and treatment recommendations"
-              : "Upload and analyze an image to see results"}
+              : analysisError
+                ? "Analysis error"
+                : "Upload and analyze an image to see results"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -158,6 +170,7 @@ export const DiseaseDetection = () => {
             isAnalyzing={isAnalyzing}
             uploadProgress={uploadProgress}
             analysisResult={analysisResult}
+            analysisError={analysisError}
             onSaveResults={handleSaveResults}
             onReset={handleReset}
           />
