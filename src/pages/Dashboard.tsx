@@ -1,13 +1,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DiseaseDetection } from "@/components/DiseaseDetection";
+import { DiseaseDetection } from "@/components/disease-detection/DiseaseDetection";
 import { WeatherInsights } from "@/components/WeatherInsights";
 import { AIAssistant } from "@/components/AIAssistant";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { MessageSquare, Upload, Cloud, Loader2 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,11 +28,14 @@ const Dashboard = () => {
   // Fetch user activity data from Supabase
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
       
       setIsLoading(true);
       try {
-        // Fetch total scans count - using from('scans') directly
+        // Fetch total scans count
         const { count: scansCount, error: scansError } = await supabase
           .from('scans')
           .select('*', { count: 'exact', head: true })
@@ -73,6 +76,13 @@ const Dashboard = () => {
         });
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        // Set default values if there's an error
+        setDashboardData({
+          totalScans: 0,
+          diseasesDetected: 0,
+          weatherAlerts: 0,
+          aiChats: 0
+        });
       } finally {
         setIsLoading(false);
       }
@@ -88,7 +98,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto p-4 md:p-6 space-y-6">
+      <div className="container mx-auto space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

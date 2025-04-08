@@ -29,7 +29,7 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
   try {
     // Call Gemini Vision API with timeout handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout (increased from 30)
     
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -56,6 +56,7 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
             temperature: 0.2,
             topK: 32,
             topP: 1,
+            maxOutputTokens: 2048
           }
         }),
         signal: controller.signal
@@ -87,7 +88,7 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
     return analysisText;
   } catch (error) {
     if (error.name === 'AbortError') {
-      throw new Error("Request to Gemini API timed out after 30 seconds");
+      throw new Error("Request to Gemini API timed out after 60 seconds");
     }
     console.error("Error calling Gemini API:", error);
     throw new Error(`Gemini API error: ${error.message || "Unknown error"}`);

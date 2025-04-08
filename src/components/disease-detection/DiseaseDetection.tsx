@@ -63,6 +63,7 @@ export const DiseaseDetection = () => {
       
       // Complete the progress bar
       clearInterval(progressInterval);
+      setUploadProgress(100);
       
       if (error) {
         console.error("Edge function error:", error);
@@ -70,10 +71,26 @@ export const DiseaseDetection = () => {
       }
       
       console.log("Received analysis response:", data);
-      setUploadProgress(100);
       
-      // Extract disease analysis results
-      if (data && data.diseaseAnalysis) {
+      // Check if there's an error in the response
+      if (data && data.error) {
+        // Handle case where the edge function returned an error message but with status 200
+        console.warn("Edge function returned error with status 200:", data.error);
+        setAnalysisError(data.error);
+        
+        // If there's a fallback analysis included, use it
+        if (data.diseaseAnalysis) {
+          setAnalysisResult(data.diseaseAnalysis);
+        }
+        
+        toast({
+          title: "Analysis completed with issues",
+          description: data.error,
+          variant: "destructive"
+        });
+      } 
+      // Handle successful analysis
+      else if (data && data.diseaseAnalysis) {
         setAnalysisResult(data.diseaseAnalysis);
         
         // Show success toast
@@ -81,10 +98,9 @@ export const DiseaseDetection = () => {
           title: "Analysis complete",
           description: `Detected: ${data.diseaseAnalysis.disease} with ${data.diseaseAnalysis.confidence}% confidence`,
         });
-      } else if (data && data.error) {
-        // Handle case where the edge function returned an error message
-        throw new Error(`Analysis failed: ${data.error}`);
-      } else {
+      } 
+      // Handle unexpected response format
+      else {
         throw new Error("No analysis results returned from server");
       }
     } catch (error) {

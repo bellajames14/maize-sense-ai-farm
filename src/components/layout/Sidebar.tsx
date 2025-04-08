@@ -12,15 +12,28 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent
 } from "@/components/ui/sidebar";
-import { Home, Cloud, Upload, MessageSquare, Settings, Bell, Info, LogOut } from "lucide-react";
+import { 
+  Home, 
+  Cloud, 
+  Upload, 
+  MessageSquare, 
+  Settings, 
+  Bell, 
+  Info, 
+  LogOut,
+  User,
+  Menu,
+  X 
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const MainSidebar = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
   
   const isActive = (path: string) => {
@@ -47,11 +60,30 @@ export const MainSidebar = () => {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center justify-center p-2">
+        <div className="flex items-center justify-between p-4">
           <Link to="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold text-green-600">MaizeSense</span>
           </Link>
         </div>
+        
+        {user && userProfile && (
+          <div className="px-4 pb-2">
+            <div className="flex items-center space-x-3 rounded-lg bg-muted/50 p-3">
+              <Avatar>
+                <AvatarImage src={userProfile.avatar_url || `https://avatar.vercel.sh/${userProfile.full_name || user.email}.png`} />
+                <AvatarFallback>
+                  {userProfile.full_name ? userProfile.full_name[0].toUpperCase() : user.email ? user.email[0].toUpperCase() : 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {userProfile.full_name || "Farmer"}
+                </p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </SidebarHeader>
       
       <SidebarContent>
@@ -125,7 +157,7 @@ export const MainSidebar = () => {
       </SidebarContent>
       
       <SidebarFooter>
-        <div className="w-full px-4 py-2">
+        <div className="w-full px-4 py-2 space-y-2">
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/settings")} tooltip="Settings">
               <Link to="/settings">
@@ -134,6 +166,17 @@ export const MainSidebar = () => {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          
+          {!user && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Sign In">
+                <Link to="/login">
+                  <User className="mr-2" />
+                  <span>Sign In</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           
           {user && (
             <Button 

@@ -3,7 +3,8 @@ import { ReactNode } from "react";
 import { 
   SidebarProvider,
   SidebarTrigger,
-  SidebarInset 
+  SidebarInset,
+  SidebarRail
 } from "@/components/ui/sidebar";
 import { MainSidebar } from "@/components/layout/Sidebar";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -19,6 +20,7 @@ export const Layout = ({ children }: LayoutProps) => {
     <SidebarProvider>
       <div className={`flex min-h-screen w-full ${theme}`}>
         <MainSidebar />
+        <SidebarRail />
         <SidebarInset>
           <div className="flex items-center p-4 md:p-6 border-b">
             <SidebarTrigger />
