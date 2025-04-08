@@ -10,6 +10,8 @@ import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
+import KnowledgeBase from "./pages/KnowledgeBase";
+import Alerts from "./pages/Alerts";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -40,12 +42,12 @@ const App = () => (
               } />
               <Route path="/knowledge" element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <KnowledgeBase />
                 </ProtectedRoute>
               } />
               <Route path="/alerts" element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <Alerts />
                 </ProtectedRoute>
               } />
               <Route path="/settings" element={
@@ -58,7 +60,6 @@ const App = () => (
                   <Settings />
                 </ProtectedRoute>
               } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </PreferencesProvider>

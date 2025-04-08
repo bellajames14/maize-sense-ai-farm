@@ -25,56 +25,71 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
   `;
   
   console.log("Sending request to Gemini API");
-  // Call Gemini Vision API
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: "image/jpeg",
-                  data: base64Image
+  
+  try {
+    // Call Gemini Vision API with timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: "image/jpeg",
+                    data: base64Image
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          ],
+          generation_config: {
+            temperature: 0.2,
+            topK: 32,
+            topP: 1,
           }
-        ],
-        generation_config: {
-          temperature: 0.2,
-          topK: 32,
-          topP: 1,
-        }
-      }),
+        }),
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    
+    console.log("Received response from Gemini API, status:", geminiResponse.status);
+    
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error("Gemini Vision API error response:", errorText);
+      throw new Error(`Gemini Vision API error: ${geminiResponse.status} ${geminiResponse.statusText}`);
     }
-  );
-  
-  console.log("Received response from Gemini API, status:", geminiResponse.status);
-  
-  if (!geminiResponse.ok) {
-    const errorText = await geminiResponse.text();
-    console.error("Gemini Vision API error response:", errorText);
-    throw new Error(`Gemini Vision API error: ${geminiResponse.status} ${geminiResponse.statusText}`);
+    
+    const responseData = await geminiResponse.json();
+    console.log("Gemini Vision response parsed successfully");
+    
+    // Extract the text from the response
+    if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
+      console.error("Unexpected response format:", JSON.stringify(responseData));
+      throw new Error("Unexpected response format from Gemini Vision API");
+    }
+    
+    const analysisText = responseData.candidates[0].content.parts[0].text;
+    console.log("Analysis text extracted:", analysisText.substring(0, 100) + "...");
+    
+    return analysisText;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error("Request to Gemini API timed out after 30 seconds");
+    }
+    console.error("Error calling Gemini API:", error);
+    throw new Error(`Gemini API error: ${error.message || "Unknown error"}`);
   }
-  
-  const responseData = await geminiResponse.json();
-  console.log("Gemini Vision response parsed successfully");
-  
-  // Extract the text from the response
-  if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
-    console.error("Unexpected response format:", JSON.stringify(responseData));
-    throw new Error("Unexpected response format from Gemini Vision API");
-  }
-  
-  const analysisText = responseData.candidates[0].content.parts[0].text;
-  console.log("Analysis text extracted:", analysisText.substring(0, 100) + "...");
-  
-  return analysisText;
 }

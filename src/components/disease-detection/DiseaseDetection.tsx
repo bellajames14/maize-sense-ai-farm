@@ -50,6 +50,7 @@ export const DiseaseDetection = () => {
       }, 300);
       
       console.log("Calling upload-image edge function");
+      
       // Call our Supabase Edge Function to upload and analyze the image
       const { data, error } = await supabase.functions.invoke('upload-image', {
         body: { 
@@ -80,12 +81,16 @@ export const DiseaseDetection = () => {
           title: "Analysis complete",
           description: `Detected: ${data.diseaseAnalysis.disease} with ${data.diseaseAnalysis.confidence}% confidence`,
         });
+      } else if (data && data.error) {
+        // Handle case where the edge function returned an error message
+        throw new Error(`Analysis failed: ${data.error}`);
       } else {
         throw new Error("No analysis results returned from server");
       }
     } catch (error) {
       console.error("Error analyzing image:", error);
       setAnalysisError(error instanceof Error ? error.message : "An unknown error occurred");
+      setUploadProgress(0);
       
       toast({
         title: "Analysis failed",
@@ -108,8 +113,7 @@ export const DiseaseDetection = () => {
     }
     
     try {
-      // The results are already saved in the database during analysis if user is logged in
-      // This is just for UX to confirm to the user
+      // Results are already saved in the database during analysis if user is logged in
       toast({
         title: "Results saved",
         description: "The analysis results have been saved to your account.",

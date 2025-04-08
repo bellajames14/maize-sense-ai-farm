@@ -44,16 +44,29 @@ serve(async (req) => {
         diseaseAnalysis: diseaseResults
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200
       });
     } catch (innerError) {
       console.error("Error in processing:", innerError);
-      throw innerError;
+      
+      // Return a more detailed error response
+      return new Response(JSON.stringify({ 
+        error: innerError.message || "An unknown error occurred during processing",
+        details: {
+          errorType: innerError.name,
+          errorStack: innerError.stack
+        }
+      }), {
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
     }
   } catch (error) {
     console.error("Error processing image:", error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || "An unknown error occurred during image analysis" 
+        error: error.message || "An unknown error occurred during image analysis",
+        errorType: error.name || "Unknown"
       }),
       { 
         status: 500, 
