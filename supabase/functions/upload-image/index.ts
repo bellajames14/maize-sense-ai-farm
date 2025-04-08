@@ -43,8 +43,15 @@ serve(async (req) => {
       
       // Store the scan result in the database if userId is provided
       if (userId) {
-        await saveScanResult(userId, publicUrl, diseaseResults);
-        console.log("Scan results saved to database for user:", userId);
+        try {
+          await saveScanResult(userId, publicUrl, diseaseResults);
+          console.log("Scan results saved to database for user:", userId);
+        } catch (dbError) {
+          console.error("Error saving to database, but continuing with analysis:", dbError);
+          // Continue with the response even if DB save fails
+        }
+      } else {
+        console.log("No userId provided, skipping database save");
       }
       
       return new Response(JSON.stringify({
