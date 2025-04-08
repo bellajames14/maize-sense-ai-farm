@@ -23,7 +23,7 @@ serve(async (req) => {
           error: "Missing required file information" 
         }), 
         { 
-          status: 400, 
+          status: 200, // Return 200 to avoid Edge Function error but include error in body
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
