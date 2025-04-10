@@ -4,3 +4,4 @@ export const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "eyJhbGciO
 export const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 export const STORAGE_BUCKET_NAME = "maize_images";
 export const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
+export const FILE_SIZE_LIMIT = "5mb"

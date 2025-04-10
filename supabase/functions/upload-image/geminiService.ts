@@ -94,3 +94,6 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
     throw new Error(`Gemini API error: ${error.message || "Unknown error"}`);
   }
 }
+
+
+

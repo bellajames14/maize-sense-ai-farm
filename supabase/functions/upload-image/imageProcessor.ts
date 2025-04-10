@@ -18,3 +18,11 @@ export function generateUniqueFilePath(userId: string | null, fileName: string):
   const timestamp = new Date().getTime();
   return `${userId || 'anonymous'}_${timestamp}_${fileName}`;
 }
+
+import * as sharp from sharp; // or any other image processing library
+
+export async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
+  return sharp(imageBuffer)
+    .resize(224, 224)  // Match your model's expected input size
+    .toBuffer();
+}
