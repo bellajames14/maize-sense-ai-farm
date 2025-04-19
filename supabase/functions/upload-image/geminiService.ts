@@ -1,35 +1,48 @@
-
 // Service for interacting with the Gemini Vision API
 export async function analyzeImageWithGemini(base64Image: string, apiKey: string): Promise<string> {
-  // Prepare the prompt for Gemini with special focus on crop diseases
+  // Prepare the prompt for Gemini with special focus on maize/corn diseases
   const prompt = `
-    Analyze this crop image for diseases. You are a farming expert helping farmers who may not have much formal education.
+    Analyze this maize/corn plant image for diseases. You are a maize farming expert helping farmers identify crop diseases.
     
     IMPORTANT:
-    1. Identify if there's any disease visible in the crop (focus on common crop diseases)
-    2. Use very simple language - avoid technical terms completely
-    3. Be very specific about what you see - "brown spots on leaves" instead of "leaf spot disease"
-    4. Give practical treatment options using basic tools and locally available items
-    5. Do NOT use asterisks (*) or any special formatting in your response
+    1. Focus ONLY on maize/corn diseases such as:
+       - Northern Corn Leaf Blight
+       - Common Rust
+       - Gray Leaf Spot
+       - Southern Corn Leaf Blight
+       - Corn Smut
+       - Corn Ear Rot
+       - Diplodia Leaf Streak
+       - Corn Eyespot
+       - Anthracnose Leaf Blight
+       - Physoderma Brown Spot
+       - Bacterial Leaf Streak
+       - Goss's Bacterial Wilt
+       - Maize Lethal Necrosis
+    2. If the maize appears healthy, confidently state it's healthy
+    3. Use very simple language suitable for farmers with limited technical knowledge
+    4. Be specific about visual symptoms - describe what you see
+    5. Provide practical treatment options using locally available solutions when possible
+    6. Include prevention tips that are realistic for small-scale farmers
     
     Please format your response as plain JSON with these fields:
     {
-      "disease": "Simple name of the problem or 'Healthy' if no disease found",
+      "disease": "Simple name of the disease or 'Healthy' if no disease found",
       "confidence": number between 50-100,
-      "affectedArea": "Which part of plant is affected and how much (like 25%)",
+      "affectedArea": "Which part of plant is affected and approximate percentage",
       "treatment": "Simple step-by-step treatment instructions",
-      "prevention": "Basic prevention tips"
+      "prevention": "Basic prevention tips for future crops"
     }
     
-    Keep all explanations brief and use very simple language suitable for farmers with minimal education.
+    Keep all explanations brief and practical, focusing on actionable advice for farmers.
   `;
   
-  console.log("Sending request to Gemini API");
+  console.log("Sending request to Gemini API for maize disease analysis");
   
   try {
     // Call Gemini Vision API with timeout handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout (increased from 30)
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
     
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -53,7 +66,7 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
             }
           ],
           generation_config: {
-            temperature: 0.2,
+            temperature: 0.1, // Lower temperature for more deterministic/factual responses
             topK: 32,
             topP: 1,
             maxOutputTokens: 2048
