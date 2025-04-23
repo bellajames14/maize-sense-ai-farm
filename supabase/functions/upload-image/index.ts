@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "./cors.ts";
 import { uploadImageToStorage } from "./storage.ts";
@@ -6,9 +5,27 @@ import { analyzeCropDiseaseWithGemini } from "./gemini.ts";
 import { saveScanResult } from "./database.ts";
 
 serve(async (req) => {
+  // Get the origin of the request
+  const origin = req.headers.get('origin');
+  
+  // Define allowed origins
+  const allowedOrigins = [
+    'https://preview--maize-sense-ai-farm.lovable.app',
+    'http://localhost:8080'
+  ];
+  
+  // Create a copy of corsHeaders to modify for this specific request
+  const responseCorsHeaders = { ...corsHeaders };
+  
+  // If the origin is in our allowedOrigins, set it as the Access-Control-Allow-Origin
+  // Otherwise, fall back to the default in corsHeaders
+  if (origin && allowedOrigins.includes(origin)) {
+    responseCorsHeaders["Access-Control-Allow-Origin"] = origin;
+  }
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: responseCorsHeaders });
   }
 
   try {
@@ -24,7 +41,7 @@ serve(async (req) => {
         }), 
         { 
           status: 200, // Return 200 to avoid Edge Function error but include error in body
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          headers: { ...responseCorsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
@@ -58,7 +75,7 @@ serve(async (req) => {
         imageUrl: publicUrl,
         diseaseAnalysis: diseaseResults
       }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...responseCorsHeaders, "Content-Type": "application/json" },
         status: 200
       });
     } catch (innerError) {
@@ -76,7 +93,7 @@ serve(async (req) => {
         }
       }), {
         status: 200, // Return 200 with error details in the response body
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { ...responseCorsHeaders, "Content-Type": "application/json" } 
       });
     }
   } catch (error) {
@@ -95,7 +112,7 @@ serve(async (req) => {
       }),
       { 
         status: 200, // Return 200 with error details to avoid Edge Function error
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { ...responseCorsHeaders, "Content-Type": "application/json" } 
       }
     );
   }
