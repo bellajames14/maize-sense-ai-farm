@@ -33,6 +33,30 @@ export type Database = {
         }
         Relationships: []
       }
+      disease_stats: {
+        Row: {
+          count: number
+          disease_name: string
+          first_detected: string
+          id: string
+          last_detected: string
+        }
+        Insert: {
+          count?: number
+          disease_name: string
+          first_detected?: string
+          id?: string
+          last_detected?: string
+        }
+        Update: {
+          count?: number
+          disease_name?: string
+          first_detected?: string
+          id?: string
+          last_detected?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

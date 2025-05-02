@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
@@ -240,7 +239,7 @@ export const DiseaseDetection = () => {
       // First check if the service role key is available
       const supabaseAdmin = supabase;
       
-      // Check if the disease exists in the stats table
+      // Use custom query to handle the disease_stats table since it might not be in the TypeScript types yet
       const { data: existingStats, error: queryError } = await supabaseAdmin
         .from('disease_stats')
         .select('*')
@@ -257,7 +256,7 @@ export const DiseaseDetection = () => {
         const { error: updateError } = await supabaseAdmin
           .from('disease_stats')
           .update({ 
-            count: existingStats.count + 1,
+            count: (existingStats as any).count + 1,
             last_detected: new Date().toISOString()
           })
           .eq('id', existingStats.id);
