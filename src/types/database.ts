@@ -28,6 +28,14 @@ export interface Database {
     created_at: string;
   };
   
+  disease_stats: {
+    id: string;
+    disease_name: string;
+    count: number;
+    first_detected: string;
+    last_detected: string;
+  };
+  
   weather_logs: {
     id: string;
     user_id: string;

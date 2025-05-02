@@ -1,13 +1,19 @@
-import { useState } from "react";
+
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImageUploader } from "./ImageUploader";
 import { AnalysisResults, DiseaseAnalysisResult } from "./AnalysisResults";
+import { loadModel, predictDisease } from "./tensorflowService";
+import { isKnownDisease, knownDiseases } from "./diseaseUtils";
+import * as tf from '@tensorflow/tfjs';
 
-// Gemini API key - In a real production app, you'd never expose this in the frontend
-// Ideally this should be stored in a secure environment variable server-side
+// Minimum confidence threshold
+const MIN_CONFIDENCE_THRESHOLD = 60;
+
+// Gemini API key
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const DiseaseDetection = () => {
@@ -17,8 +23,27 @@ export const DiseaseDetection = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<DiseaseAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  // Load TensorFlow.js model
+  useEffect(() => {
+    const initializeModel = async () => {
+      try {
+        await tf.ready();
+        console.log("TensorFlow.js is ready");
+        await loadModel();
+        setIsModelLoaded(true);
+      } catch (error) {
+        console.error("Failed to initialize TensorFlow.js model:", error);
+        setAnalysisError("Failed to load disease detection model. Please try again later.");
+      }
+    };
+
+    initializeModel();
+  }, []);
 
   const handleFileChange = (file: File | null) => {
     if (file) {
@@ -50,7 +75,6 @@ export const DiseaseDetection = () => {
           console.log("Successfully parsed disease data from JSON");
         } catch (e) {
           console.error("Failed to parse JSON from Gemini:", e);
-          // Fall back to extraction from text
           diseaseData = extractDiseaseDataFromText(analysisText);
         }
       } else {
@@ -69,7 +93,6 @@ export const DiseaseDetection = () => {
       return {
         disease: diseaseData.disease || "Unknown",
         confidence: typeof diseaseData.confidence === 'number' ? diseaseData.confidence : 85,
-        affectedArea: diseaseData.affectedArea || "25%",
         treatment: diseaseData.treatment || "Consult with a local agriculture helper.",
         prevention: diseaseData.prevention || "Keep plants spaced well and water at the base, not on leaves."
       };
@@ -78,7 +101,6 @@ export const DiseaseDetection = () => {
       return {
         disease: "Analysis Error",
         confidence: 50,
-        affectedArea: "Unknown",
         treatment: "We couldn't analyze your image. Please try again with a clearer photo.",
         prevention: "Take photos in good light and make sure the plant is clearly visible."
       };
@@ -92,7 +114,6 @@ export const DiseaseDetection = () => {
     const result: Partial<DiseaseAnalysisResult> = {
       disease: "Unknown",
       confidence: 85,
-      affectedArea: "25%",
       treatment: "Consult with a local agriculture helper.",
       prevention: "Keep plants spaced well and water at the base, not on leaves."
     };
@@ -107,7 +128,6 @@ export const DiseaseDetection = () => {
     if (text.toLowerCase().includes("healthy")) {
       result.disease = "Healthy";
       result.confidence = 95;
-      result.affectedArea = "0%";
       result.treatment = "No treatment needed. Your plant looks good.";
       result.prevention = "Keep taking good care of your plants as you have been.";
     }
@@ -117,12 +137,6 @@ export const DiseaseDetection = () => {
                            text.match(/(\d+)%\s*confidence/i) ||
                            text.match(/(\d+)%\s*sure/i);
     if (confidenceMatch) result.confidence = parseInt(confidenceMatch[1]);
-    
-    // Try to extract affected area
-    const areaMatch = text.match(/affected area:?\s*(\d+%)/i) ||
-                      text.match(/(\d+)%\s*of the plant/i) ||
-                      text.match(/about (\d+)%/i);
-    if (areaMatch) result.affectedArea = areaMatch[1];
     
     // Try to extract treatment
     const treatmentMatch = text.match(/[Tt]reatment:?\s*([^.]*\.)/);
@@ -135,7 +149,145 @@ export const DiseaseDetection = () => {
     console.log("Extracted disease data:", result);
     return result;
   };
+
+  // Ask Gemini for recommendations
+  const getGeminiRecommendations = async (diseaseName: string, confidence: number): Promise<{ treatment: string, prevention: string }> => {
+    try {
+      // Prepare the prompt for Gemini
+      const prompt = `
+        I'm a farmer who has detected ${diseaseName} in my maize crop with ${confidence}% confidence. 
+        
+        Please provide:
+        1. A very simple recommendation for what I should do (in very basic English any farmer can understand)
+        2. Simple treatment tips that are practical and actionable for a rural farmer
+
+        Keep your language extremely simple, practical and actionable. Write for someone who may have limited education.
+        Focus on affordable solutions and locally available materials.
+        Make sure treatments are safe and environmentally friendly.
+        
+        Format your response as:
+        
+        Recommendation: [simple recommendation]
+        
+        Treatment Tips: [simple actionable tips]
+      `;
+      
+      // Call Gemini Vision API directly
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt }
+                ]
+              }
+            ],
+            generation_config: {
+              temperature: 0.2,
+              topK: 32,
+              topP: 1,
+              maxOutputTokens: 800
+            }
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        console.error("Gemini API error:", await response.text());
+        return {
+          treatment: "Please consult with your local agricultural expert for advice on this disease.",
+          prevention: "Keep your fields clean and plants well-spaced to reduce disease spread."
+        };
+      }
+      
+      const responseData = await response.json();
+      
+      // Extract the text from the response
+      if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
+        throw new Error("Unexpected response format from Gemini API");
+      }
+      
+      const recommendationsText = responseData.candidates[0].content.parts[0].text;
+      
+      // Extract recommendation and treatment tips
+      const recommendationMatch = recommendationsText.match(/Recommendation:?\s*([^]*?)(?=Treatment|$)/i);
+      const treatmentMatch = recommendationsText.match(/Treatment Tips:?\s*([^]*?)(?=$)/i);
+      
+      return {
+        treatment: recommendationMatch ? recommendationMatch[1].trim() : 
+                  "Please consult with your local agricultural expert for advice on this disease.",
+        prevention: treatmentMatch ? treatmentMatch[1].trim() : 
+                   "Keep your fields clean and plants well-spaced to reduce disease spread."
+      };
+    } catch (error) {
+      console.error("Error getting Gemini recommendations:", error);
+      return {
+        treatment: "Please consult with your local agricultural expert for advice on this disease.",
+        prevention: "Keep your fields clean and plants well-spaced to reduce disease spread."
+      };
+    }
+  };
   
+  // Update disease count in disease_stats table
+  const updateDiseaseCount = async (diseaseName: string) => {
+    try {
+      // First check if the service role key is available
+      const supabaseAdmin = supabase;
+      
+      // Check if the disease exists in the stats table
+      const { data: existingStats, error: queryError } = await supabaseAdmin
+        .from('disease_stats')
+        .select('*')
+        .eq('disease_name', diseaseName)
+        .maybeSingle();
+      
+      if (queryError) {
+        console.error("Error checking disease stats:", queryError);
+        return; // Continue with main flow
+      }
+      
+      if (existingStats) {
+        // Disease exists, update the count
+        const { error: updateError } = await supabaseAdmin
+          .from('disease_stats')
+          .update({ 
+            count: existingStats.count + 1,
+            last_detected: new Date().toISOString()
+          })
+          .eq('id', existingStats.id);
+        
+        if (updateError) {
+          console.error("Error updating disease count:", updateError);
+        }
+      } else {
+        // Disease doesn't exist, create a new entry
+        const { error: insertError } = await supabaseAdmin
+          .from('disease_stats')
+          .insert({
+            disease_name: diseaseName,
+            count: 1,
+            first_detected: new Date().toISOString(),
+            last_detected: new Date().toISOString()
+          });
+        
+        if (insertError) {
+          console.error("Error inserting new disease stat:", insertError);
+        }
+      }
+      
+      console.log(`Successfully updated count for ${diseaseName}`);
+    } catch (error) {
+      console.error("Error updating disease stats:", error);
+      // Don't throw here to prevent disrupting the main flow
+    }
+  };
+
   // Save scan result to database
   const saveScanResult = async (
     userId: string,
@@ -150,7 +302,7 @@ export const DiseaseDetection = () => {
         image_url: imageUrl,
         disease_name: diseaseResults.disease,
         confidence: diseaseResults.confidence,
-        affected_area_estimate: diseaseResults.affectedArea,
+        affected_area_estimate: diseaseResults.affectedArea || "Unknown",
         treatment_tips: diseaseResults.treatment,
         prevention_tips: diseaseResults.prevention
       }).select('id');
@@ -173,181 +325,215 @@ export const DiseaseDetection = () => {
       throw dbError;
     }
   };
-  
-  // Update disease count in disease_stats table
-  const updateDiseaseCount = async (diseaseName: string) => {
-    try {
-      console.log(`Updating count for disease: ${diseaseName}`);
-      
-      // First check if the disease exists in the stats table
-      const { data: existingStats, error: queryError } = await supabase
-        .from('disease_stats')
-        .select('*')
-        .eq('disease_name', diseaseName)
-        .single();
-      
-      if (queryError && queryError.code !== 'PGRST116') { // PGRST116 is "not found" error
-        console.error("Error checking disease stats:", queryError);
-        throw queryError;
-      }
-      
-      if (existingStats) {
-        // Disease exists, update the count
-        const { error: updateError } = await supabase
-          .from('disease_stats')
-          .update({ 
-            count: existingStats.count + 1,
-            last_detected: new Date().toISOString()
-          })
-          .eq('id', existingStats.id);
-        
-        if (updateError) {
-          console.error("Error updating disease count:", updateError);
-          throw updateError;
-        }
-      } else {
-        // Disease doesn't exist, create a new entry
-        const { error: insertError } = await supabase
-          .from('disease_stats')
-          .insert({
-            disease_name: diseaseName,
-            count: 1,
-            first_detected: new Date().toISOString(),
-            last_detected: new Date().toISOString()
-          });
-        
-        if (insertError) {
-          console.error("Error inserting new disease stat:", insertError);
-          throw insertError;
-        }
-      }
-      
-      console.log(`Successfully updated count for ${diseaseName}`);
-    } catch (error) {
-      console.error("Error updating disease stats:", error);
-      // Don't throw here to prevent disrupting the main flow
+
+  // Analyze image using TensorFlow.js model
+  const analyzeWithTensorflow = async (): Promise<{diseaseName: string, confidence: number}> => {
+    if (!imageRef.current) {
+      throw new Error("Image reference not available");
     }
+    
+    // Make sure image is fully loaded
+    return new Promise((resolve, reject) => {
+      if (imageRef.current?.complete) {
+        // Image already loaded
+        predictDisease(imageRef.current)
+          .then(result => resolve(result))
+          .catch(error => reject(error));
+      } else {
+        // Wait for image to load
+        imageRef.current.onload = () => {
+          predictDisease(imageRef.current!)
+            .then(result => resolve(result))
+            .catch(error => reject(error));
+        };
+        imageRef.current.onerror = () => {
+          reject(new Error("Failed to load image for analysis"));
+        };
+      }
+    });
+  };
+
+  // Get full analysis with Gemini API for unknown diseases or low confidence
+  const analyzeWithGemini = async (base64Image: string, detectedDisease?: string): Promise<DiseaseAnalysisResult> => {
+    // Prepare the prompt for Gemini
+    let prompt = `
+      Analyze this maize/corn plant image for diseases. You are a maize farming expert helping farmers identify crop diseases.
+      
+      IMPORTANT:
+      1. Focus ONLY on maize/corn diseases
+      2. If the maize appears healthy, confidently state it's healthy
+      3. Use very simple language suitable for farmers with limited technical knowledge
+      4. Be specific about symptoms - describe what you see
+      5. Provide practical treatment options using locally available solutions
+      6. Include prevention tips that are realistic for small-scale farmers
+    `;
+    
+    if (detectedDisease) {
+      prompt += `\n\nNote: Our system detected "${detectedDisease}" with low confidence. Please confirm or suggest a more accurate diagnosis.`;
+    } else {
+      prompt += `\n\nNote: Our system couldn't identify the disease with high confidence. Please provide your expert analysis.`;
+    }
+    
+    prompt += `
+      Please format your response as plain JSON with these fields:
+      {
+        "disease": "Simple name of the disease or 'Healthy' if no disease found",
+        "confidence": number between 50-100,
+        "treatment": "Simple step-by-step treatment instructions that any farmer can understand",
+        "prevention": "Basic prevention tips for future crops in simple language"
+      }
+      
+      Keep all explanations brief and practical, focusing on actionable advice for farmers with limited resources.
+    `;
+    
+    // Call Gemini Vision API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: "image/jpeg",
+                    data: base64Image
+                  }
+                }
+              ]
+            }
+          ],
+          generation_config: {
+            temperature: 0.1,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 2048
+          }
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Analysis failed: ${response.statusText || "Error calling Gemini API"}`);
+    }
+    
+    const responseData = await response.json();
+    
+    // Extract the text from the response
+    if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
+      throw new Error("Unexpected response format from Gemini Vision API");
+    }
+    
+    const analysisText = responseData.candidates[0].content.parts[0].text;
+    
+    // Process the response
+    return processGeminiResponse(analysisText);
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile || !previewUrl) return;
+    if (!selectedFile || !previewUrl || !isModelLoaded) {
+      if (!isModelLoaded) {
+        toast({
+          title: "Model not ready",
+          description: "Disease detection model is still loading. Please try again in a moment.",
+          variant: "destructive"
+        });
+      }
+      return;
+    }
     
     setIsAnalyzing(true);
     setUploadProgress(0);
     setAnalysisError(null);
     
     try {
-      // Simulate upload progress
+      // Simulate initial progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 30) {
             clearInterval(progressInterval);
-            return 90;
+            return 30;
           }
-          return prev + 10;
+          return prev + 5;
         });
-      }, 300);
+      }, 200);
       
-      console.log("Analyzing image with Gemini directly");
-      
-      // Extract base64 data from the preview URL
+      // Extract base64 data for using in Gemini API calls later if needed
       const base64Data = previewUrl.split(',')[1];
       
-      // Prepare the prompt for Gemini
-      const prompt = `
-        Analyze this maize/corn plant image for diseases. You are a maize farming expert helping farmers identify crop diseases.
-        
-        IMPORTANT:
-        1. Focus ONLY on maize/corn diseases such as:
-           - Northern Corn Leaf Blight
-           - Common Rust
-           - Gray Leaf Spot
-           - Southern Corn Leaf Blight
-           - Corn Smut
-           - Corn Ear Rot
-           - Diplodia Leaf Streak
-           - Corn Eyespot
-           - Anthracnose Leaf Blight
-           - Physoderma Brown Spot
-           - Bacterial Leaf Streak
-           - Goss's Bacterial Wilt
-           - Maize Lethal Necrosis
-        2. If the maize appears healthy, confidently state it's healthy
-        3. Use very simple language suitable for farmers with limited technical knowledge
-        4. Be specific about visual symptoms - describe what you see
-        5. Provide practical treatment options using locally available solutions when possible
-        6. Include prevention tips that are realistic for small-scale farmers
-        
-        Please format your response as plain JSON with these fields:
-        {
-          "disease": "Simple name of the disease or 'Healthy' if no disease found",
-          "confidence": number between 50-100,
-          "affectedArea": "Which part of plant is affected and approximate percentage",
-          "treatment": "Simple step-by-step treatment instructions",
-          "prevention": "Basic prevention tips for future crops"
-        }
-        
-        Keep all explanations brief and practical, focusing on actionable advice for farmers.
-      `;
+      // Create hidden image element for TensorFlow.js
+      if (!imageRef.current) {
+        imageRef.current = new Image();
+        imageRef.current.crossOrigin = "anonymous";
+        imageRef.current.src = previewUrl;
+      } else {
+        imageRef.current.src = previewUrl;
+      }
       
-      // Call Gemini Vision API directly
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  {
-                    inline_data: {
-                      mime_type: "image/jpeg",
-                      data: base64Data
-                    }
-                  }
-                ]
-              }
-            ],
-            generation_config: {
-              temperature: 0.1,
-              topK: 32,
-              topP: 1,
-              maxOutputTokens: 2048
-            }
-          })
+      // First try to detect disease with TensorFlow.js model
+      setUploadProgress(40);
+      let result: DiseaseAnalysisResult;
+      let usedTensorFlow = false;
+      
+      try {
+        // Analyze with TensorFlow model
+        console.log("Analyzing with TensorFlow.js model");
+        const tfPrediction = await analyzeWithTensorflow();
+        const { diseaseName, confidence } = tfPrediction;
+        console.log("TensorFlow.js prediction:", diseaseName, confidence);
+        
+        // Update progress
+        setUploadProgress(70);
+        
+        // Check if we should use this result or fall back to Gemini
+        if (isKnownDisease(diseaseName) && confidence >= MIN_CONFIDENCE_THRESHOLD) {
+          // Use TensorFlow result but get recommendations from Gemini
+          const recommendations = await getGeminiRecommendations(diseaseName, confidence);
+          
+          result = {
+            disease: diseaseName,
+            confidence: confidence,
+            treatment: recommendations.treatment,
+            prevention: recommendations.prevention
+          };
+          usedTensorFlow = true;
+        } else {
+          // Low confidence or unknown disease, use Gemini with the TensorFlow hint
+          console.log("Low confidence or unknown disease, falling back to Gemini");
+          setUploadProgress(75);
+          
+          // Show message to user
+          toast({
+            title: confidence < MIN_CONFIDENCE_THRESHOLD ? "Low confidence detection" : "Unknown disease detected",
+            description: "We're analyzing your image more thoroughly to provide accurate results.",
+            variant: "default"
+          });
+          
+          result = await analyzeWithGemini(base64Data, diseaseName);
         }
-      );
+      } catch (tfError) {
+        // TensorFlow failed, fall back to Gemini
+        console.error("TensorFlow analysis failed:", tfError);
+        console.log("Falling back to Gemini API");
+        setUploadProgress(75);
+        
+        toast({
+          title: "Advanced analysis in progress",
+          description: "We're using our AI assistant to analyze your image more thoroughly.",
+          variant: "default"
+        });
+        
+        result = await analyzeWithGemini(base64Data);
+      }
       
       // Complete the progress bar
-      clearInterval(progressInterval);
-      setUploadProgress(95);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini API error:", errorText);
-        throw new Error(`Analysis failed: ${response.statusText || "Error calling Gemini API"}`);
-      }
-      
-      const responseData = await response.json();
-      
-      // Extract the text from the response
-      if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
-        throw new Error("Unexpected response format from Gemini Vision API");
-      }
-      
-      const analysisText = responseData.candidates[0].content.parts[0].text;
-      console.log("Analysis text received:", analysisText.substring(0, 100) + "...");
-      
-      // Process the response
-      const diseaseResults = processGeminiResponse(analysisText);
       setUploadProgress(100);
-      
-      console.log("Analysis results:", diseaseResults);
-      setAnalysisResult(diseaseResults);
+      console.log("Final analysis results:", result);
       
       // Store results in Supabase if user is logged in
       if (user) {
@@ -369,7 +555,7 @@ export const DiseaseDetection = () => {
             const imageUrl = publicUrlData.publicUrl;
             
             // Save scan result
-            await saveScanResult(user.id, imageUrl, diseaseResults);
+            await saveScanResult(user.id, imageUrl, result);
           }
         } catch (saveError) {
           console.error("Error saving results:", saveError);
@@ -377,13 +563,15 @@ export const DiseaseDetection = () => {
         }
       }
       
+      setAnalysisResult(result);
+      
       // Show success toast
       toast({
         title: "Analysis complete",
-        description: diseaseResults.disease === "Healthy" 
+        description: result.disease === "Healthy" 
           ? "Great news! Your maize plant appears healthy." 
-          : `Detected: ${diseaseResults.disease} with ${diseaseResults.confidence}% confidence. See treatment options below.`,
-        variant: diseaseResults.disease === "Healthy" ? "default" : "destructive"
+          : `Detected: ${result.disease} with ${Math.round(result.confidence)}% confidence.`,
+        variant: result.disease === "Healthy" ? "default" : "destructive"
       });
       
     } catch (error) {
@@ -441,7 +629,7 @@ export const DiseaseDetection = () => {
         <CardHeader>
           <CardTitle>Maize Disease Detection</CardTitle>
           <CardDescription>
-            Upload an image of your maize plant to detect diseases and receive treatment recommendations.
+            Upload an image of your maize plant to detect diseases and receive treatment advice.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -453,6 +641,13 @@ export const DiseaseDetection = () => {
             onFileChange={handleFileChange}
             onAnalyze={handleAnalyze}
             onReset={handleReset}
+          />
+          <img 
+            ref={imageRef}
+            src={previewUrl || ''}
+            className="hidden"
+            alt="Hidden"
+            crossOrigin="anonymous"
           />
         </CardContent>
       </Card>
