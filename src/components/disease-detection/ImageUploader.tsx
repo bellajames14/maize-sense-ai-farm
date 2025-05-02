@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +11,7 @@ interface ImageUploaderProps {
   previewUrl: string | null;
   isAnalyzing: boolean;
   uploadProgress: number;
+  isModelLoaded: boolean;
   onFileChange: (file: File | null) => void;
   onAnalyze: () => Promise<void>;
   onReset: () => void;
@@ -22,6 +22,7 @@ export const ImageUploader = ({
   previewUrl,
   isAnalyzing,
   uploadProgress,
+  isModelLoaded,
   onFileChange,
   onAnalyze,
   onReset,
@@ -92,7 +93,7 @@ export const ImageUploader = ({
       <Button 
         className="w-full bg-green-700 hover:bg-green-800"
         onClick={onAnalyze}
-        disabled={!selectedFile || isAnalyzing}
+        disabled={!selectedFile || isAnalyzing || !isModelLoaded}
       >
         {isAnalyzing ? (
           <>
