@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Check, Cloud, LineChart, Upload, Users, Zap } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 const Hero = () => (
-  <section className="w-full py-12 md:py-24 lg:py-32 hero-gradient">
+  <section className="w-full py-12 md:py-24 lg:py-32 hero-gradient" id="home">
     <div className="container px-4 md:px-6">
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
         <div className="space-y-4">
@@ -42,7 +43,7 @@ const Hero = () => (
 );
 
 const HowItWorks = () => (
-  <section className="w-full py-12 md:py-24 lg:py-32 bg-white">
+  <section className="w-full py-12 md:py-24 lg:py-32 bg-white" id="how-it-works">
     <div className="container px-4 md:px-6">
       <div className="flex flex-col items-center justify-center space-y-4 text-center">
         <div className="space-y-2">
@@ -89,7 +90,7 @@ const HowItWorks = () => (
 );
 
 const Features = () => (
-  <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+  <section className="w-full py-12 md:py-24 lg:py-32 bg-muted" id="features">
     <div className="container px-4 md:px-6">
       <div className="flex flex-col items-center justify-center space-y-4 text-center">
         <div className="space-y-2">
@@ -148,7 +149,7 @@ const Features = () => (
 );
 
 const Testimonials = () => (
-  <section className="w-full py-12 md:py-24 lg:py-32 bg-white">
+  <section className="w-full py-12 md:py-24 lg:py-32 bg-white" id="testimonials">
     <div className="container px-4 md:px-6">
       <div className="flex flex-col items-center justify-center space-y-4 text-center">
         <div className="space-y-2">
@@ -227,7 +228,7 @@ const CallToAction = () => (
 );
 
 const Footer = () => (
-  <footer className="bg-muted py-6 md:py-12">
+  <footer className="bg-muted py-6 md:py-12" id="about">
     <div className="container px-4 md:px-6">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-4">
@@ -240,13 +241,13 @@ const Footer = () => (
           <h3 className="text-lg font-bold">Features</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>
-              <a href="#" className="hover:text-foreground">Disease Detection</a>
+              <a href="#features" className="hover:text-foreground">Disease Detection</a>
             </li>
             <li>
-              <a href="#" className="hover:text-foreground">Weather Insights</a>
+              <a href="#features" className="hover:text-foreground">Weather Insights</a>
             </li>
             <li>
-              <a href="#" className="hover:text-foreground">AI Assistant</a>
+              <a href="#features" className="hover:text-foreground">AI Assistant</a>
             </li>
           </ul>
         </div>
@@ -268,13 +269,13 @@ const Footer = () => (
           <h3 className="text-lg font-bold">Company</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>
-              <a href="#" className="hover:text-foreground">About</a>
+              <a href="#about" className="hover:text-foreground">About</a>
             </li>
             <li>
-              <a href="#" className="hover:text-foreground">Contact</a>
+              <a href="#about" className="hover:text-foreground">Contact</a>
             </li>
             <li>
-              <a href="#" className="hover:text-foreground">Privacy Policy</a>
+              <a href="#about" className="hover:text-foreground">Privacy Policy</a>
             </li>
           </ul>
         </div>
@@ -286,28 +287,59 @@ const Footer = () => (
   </footer>
 );
 
+// Create a custom hook for smooth scrolling
+const useSmoothScroll = () => {
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  };
+
+  return { scrollToSection };
+};
+
 const Index = () => {
+  const { scrollToSection } = useSmoothScroll();
+
+  // Handle navigation click events
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+    e.preventDefault();
+    scrollToSection(sectionId);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="bg-background z-40">
+      <header className="bg-background z-40 sticky top-0 border-b">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="/placeholder.svg" alt="MaizeSense AI" className="h-8 w-8" />
             <span className="text-xl font-bold">MaizeSense AI</span>
           </div>
           <nav className="hidden md:flex gap-6">
-            <Link to="/" className="text-sm font-medium hover:text-primary">
+            <a href="#home" 
+               onClick={(e) => handleNavClick(e, "home")} 
+               className="text-sm font-medium hover:text-primary">
               Home
-            </Link>
-            <Link to="#" className="text-sm font-medium hover:text-primary">
+            </a>
+            <a href="#features" 
+               onClick={(e) => handleNavClick(e, "features")} 
+               className="text-sm font-medium hover:text-primary">
               Features
-            </Link>
-            <Link to="#" className="text-sm font-medium hover:text-primary">
-              Pricing
-            </Link>
-            <Link to="#" className="text-sm font-medium hover:text-primary">
+            </a>
+            <a href="#how-it-works" 
+               onClick={(e) => handleNavClick(e, "how-it-works")} 
+               className="text-sm font-medium hover:text-primary">
+              How It Works
+            </a>
+            <a href="#about" 
+               onClick={(e) => handleNavClick(e, "about")} 
+               className="text-sm font-medium hover:text-primary">
               About
-            </Link>
+            </a>
           </nav>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
