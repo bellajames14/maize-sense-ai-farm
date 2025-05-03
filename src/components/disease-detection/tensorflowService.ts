@@ -2,20 +2,11 @@
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from './diseaseUtils';
 
-// Use local model path instead of remote URL
+// Use local model path
 const MODEL_URL = '/tfjs_model/model.json';
 let model: tf.LayersModel | null = null;
 
-// Type definition for the model config
-interface ModelConfig {
-  config?: {
-    layers?: any[];
-    input_layers?: any[];
-    output_layers?: any[];
-  };
-}
-
-// Load the model
+// Load the model with improved handling and caching
 export const loadModel = async (): Promise<tf.LayersModel> => {
   if (model) {
     console.log("Using cached model");
@@ -25,18 +16,17 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
   try {
     console.log("Starting model loading from:", MODEL_URL);
     
-    // Add a timeout promise to detect network issues
+    // Shorter timeout for faster detection of issues
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Model loading timed out after 15 seconds")), 15000);
+      setTimeout(() => reject(new Error("Model loading timed out")), 5000);
     });
     
     // Use explicit model loading options with cache options
     const modelLoadingOptions = {
-      strict: false,
       fetchFunc: (url: string, init?: RequestInit) => {
         // Add cache control for better performance
         const headers = new Headers(init?.headers);
-        headers.set('Cache-Control', 'max-age=86400'); // Cache for 24 hours
+        headers.set('Cache-Control', 'max-age=86400');
         
         return fetch(url, {
           ...init,
@@ -54,8 +44,7 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
     
     console.log("Model loaded successfully");
     
-    // Instead of checking the model configuration which can be problematic,
-    // just warm up the model with a test prediction
+    // Warm up the model with a test prediction to ensure it's working
     try {
       console.log("Warming up model with test tensor...");
       const dummyTensor = tf.zeros([1, 224, 224, 3]);

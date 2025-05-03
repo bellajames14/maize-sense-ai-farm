@@ -180,19 +180,19 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue={tab} className="space-y-4" onValueChange={handleTabChange}>
+        <Tabs defaultValue={tab} className="space-y-6" onValueChange={handleTabChange}>
           <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="disease">{translate("diseaseDetection")}</TabsTrigger>
             <TabsTrigger value="weather">{translate("weatherInsights")}</TabsTrigger>
             <TabsTrigger value="assistant">{translate("aiAssistant")}</TabsTrigger>
           </TabsList>
-          <TabsContent value="disease" className="space-y-4">
+          <TabsContent value="disease" className="space-y-4 pt-4">
             <DiseaseDetection />
           </TabsContent>
-          <TabsContent value="weather" className="space-y-4">
+          <TabsContent value="weather" className="space-y-4 pt-4">
             <WeatherInsights />
           </TabsContent>
-          <TabsContent value="assistant" className="space-y-4">
+          <TabsContent value="assistant" className="space-y-4 pt-4">
             <AIAssistant />
           </TabsContent>
         </Tabs>
