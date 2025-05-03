@@ -11,12 +11,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
   const { tab = "disease" } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { translate } = usePreferences();
+  const isMobile = useIsMobile();
   const [dashboardData, setDashboardData] = useState({
     totalScans: 0,
     diseasesDetected: 0,
@@ -98,8 +100,8 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="container px-2 sm:px-4 md:px-6 mx-auto space-y-6">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate("totalScans")}</CardTitle>
@@ -179,7 +181,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue={tab} className="space-y-4" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="disease">{translate("diseaseDetection")}</TabsTrigger>
             <TabsTrigger value="weather">{translate("weatherInsights")}</TabsTrigger>
             <TabsTrigger value="assistant">{translate("aiAssistant")}</TabsTrigger>

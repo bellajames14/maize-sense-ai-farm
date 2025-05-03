@@ -5,6 +5,7 @@ import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import * as tf from "@tensorflow/tfjs";
 import { loadModel } from "../tensorflowService";
 import { useToast } from "@/components/ui/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ModelInitializerProps {
   onModelLoaded: (isLoaded: boolean) => void;
@@ -15,6 +16,7 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadStatus, setLoadStatus] = useState<string>("Starting initialization...");
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Load TensorFlow.js model
   useEffect(() => {
@@ -36,6 +38,21 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
         const backend = tf.getBackend();
         console.log("Using backend:", backend);
         
+        // On mobile devices, go straight to cloud analysis
+        if (isMobile) {
+          console.log("Mobile device detected, using cloud analysis");
+          setLoadStatus("Using cloud analysis for mobile");
+          setIsLoading(false);
+          onModelLoaded(true);
+          
+          toast({
+            title: "Using cloud analysis",
+            description: "For optimal performance on mobile devices, we're using cloud analysis.",
+            variant: "default"
+          });
+          return;
+        }
+        
         // Try to enforce WebGL backend if not already using it
         if (backend !== 'webgl') {
           try {
@@ -46,10 +63,15 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           }
         }
         
-        // Load the model with fast timeout
+        // Set a shorter timeout for model loading
         try {
           setLoadStatus("Loading model...");
-          await loadModel();
+          await Promise.race([
+            loadModel(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("Model loading timeout")), 7000)
+            )
+          ]);
           
           console.log("Model loaded successfully");
           setLoadStatus("Model ready!");
@@ -91,7 +113,7 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
     };
 
     initializeModel();
-  }, [onModelLoaded, toast]);
+  }, [onModelLoaded, toast, isMobile]);
 
   if (loadError) {
     return (

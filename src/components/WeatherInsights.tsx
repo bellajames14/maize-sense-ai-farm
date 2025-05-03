@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const WeatherInsights = () => {
   const [location, setLocation] = useState("Lagos, Nigeria");
@@ -33,6 +34,7 @@ export const WeatherInsights = () => {
   } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   const fetchWeatherData = async () => {
     if (!location.trim()) {
@@ -141,7 +143,7 @@ export const WeatherInsights = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
       <Card className="col-span-1">
         <CardHeader>
           <CardTitle>Current Weather</CardTitle>
@@ -152,14 +154,15 @@ export const WeatherInsights = () => {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="location">Farm Location</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <Input
                 id="location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Enter city or coordinates"
+                className="w-full sm:w-auto flex-grow"
               />
-              <Button onClick={fetchWeatherData} disabled={isLoading}>
+              <Button onClick={fetchWeatherData} disabled={isLoading} className="ml-0 sm:ml-2">
                 Update
               </Button>
             </div>
@@ -202,7 +205,7 @@ export const WeatherInsights = () => {
                 <Button
                   onClick={saveWeatherData}
                   disabled={isSaving}
-                  className="mt-4 bg-green-700 hover:bg-green-800"
+                  className="mt-4 bg-green-700 hover:bg-green-800 w-full sm:w-auto"
                 >
                   {isSaving ? (
                     <span>Saving...</span>
@@ -223,7 +226,7 @@ export const WeatherInsights = () => {
         </CardContent>
       </Card>
 
-      <Card className="col-span-1 lg:col-span-2">
+      <Card className={`col-span-1 ${isMobile ? '' : 'lg:col-span-2'}`}>
         <CardHeader>
           <CardTitle>Farming Recommendations</CardTitle>
           <CardDescription>
@@ -272,15 +275,15 @@ export const WeatherInsights = () => {
             </div>
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex justify-center sm:justify-start">
           {!user ? (
-            <Button className="bg-green-700 hover:bg-green-800">
+            <Button className="bg-green-700 hover:bg-green-800 w-full sm:w-auto">
               <Database className="mr-2 h-4 w-4" />
               Login to Save Recommendations
             </Button>
           ) : (
             <Button 
-              className="bg-green-700 hover:bg-green-800"
+              className="bg-green-700 hover:bg-green-800 w-full sm:w-auto"
               onClick={fetchWeatherData}
               disabled={isLoading}
             >

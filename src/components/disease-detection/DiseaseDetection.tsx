@@ -5,9 +5,11 @@ import { ImageUploader } from "./ImageUploader";
 import { AnalysisResults } from "./AnalysisResults";
 import { ModelInitializer } from "./components/ModelInitializer";
 import { useDiseaseAnalysis } from "./hooks/useDiseaseAnalysis";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const DiseaseDetection = () => {
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const isMobile = useIsMobile();
   const {
     selectedFile,
     previewUrl,
@@ -23,7 +25,7 @@ export const DiseaseDetection = () => {
   } = useDiseaseAnalysis();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
       <Card>
         <CardHeader>
           <CardTitle>Maize Disease Detection</CardTitle>

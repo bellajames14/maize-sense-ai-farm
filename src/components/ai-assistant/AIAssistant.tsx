@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle } from "lucide-react";
@@ -11,6 +11,7 @@ import { LoadingMessage } from "./LoadingMessage";
 import { WelcomeMessage } from "./WelcomeMessage";
 import { ChatInput } from "./ChatInput";
 import { ErrorDisplay } from "./ErrorDisplay";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type ChatMessage = {
   content: string;
@@ -26,6 +27,15 @@ export function AIAssistant() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { translate, language } = usePreferences();
+  const isMobile = useIsMobile();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom of chat when new messages are added
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
 
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -104,7 +114,7 @@ export function AIAssistant() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-2 sm:p-4">
       <Card className="w-full max-w-4xl mx-auto border-2 border-primary/20">
         <CardHeader className="bg-muted/30">
           <CardTitle className="flex items-center gap-2">
@@ -113,8 +123,12 @@ export function AIAssistant() {
           </CardTitle>
           <CardDescription>{translate("Ask the AI assistant about maize farming")}</CardDescription>
         </CardHeader>
-        <CardContent className="p-4 pt-6">
-          <div className="space-y-6 mb-6 max-h-[calc(100vh-350px)] overflow-auto p-2 rounded-lg">
+        <CardContent className="p-2 sm:p-4 pt-4 sm:pt-6">
+          <div 
+            ref={chatContainerRef}
+            className="space-y-4 sm:space-y-6 mb-4 sm:mb-6 max-h-[calc(100vh-350px)] overflow-auto p-2 rounded-lg"
+            style={{ height: isMobile ? '300px' : 'auto' }}
+          >
             {chatHistory.length === 0 ? (
               <WelcomeMessage onSuggestionClick={handleSuggestionClick} />
             ) : (
@@ -136,10 +150,10 @@ export function AIAssistant() {
             setShowErrorDialog={setShowErrorDialog} 
           />
         </CardContent>
-        <CardFooter className="text-sm text-muted-foreground bg-muted/30 border-t">
+        <CardFooter className="text-xs sm:text-sm text-muted-foreground bg-muted/30 border-t">
           {translate("The AI assistant uses machine learning to provide farming advice")}
         </CardFooter>
       </Card>
     </div>
   );
-}
+};
