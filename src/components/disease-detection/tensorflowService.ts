@@ -6,6 +6,15 @@ import { knownDiseases } from './diseaseUtils';
 const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/model.json';
 let model: tf.LayersModel | null = null;
 
+// Type definition for the model config
+interface ModelConfig {
+  config?: {
+    layers?: any[];
+    input_layers?: any[];
+    output_layers?: any[];
+  };
+}
+
 // Load the model
 export const loadModel = async (): Promise<tf.LayersModel> => {
   if (model) {
@@ -36,7 +45,11 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
     console.log("Model downloaded successfully");
     
     // Check model architecture and input shape
-    const modelConfig = model.toJSON();
+    const modelJSON = model.toJSON();
+    const modelConfig = typeof modelJSON === 'string' 
+      ? JSON.parse(modelJSON) as ModelConfig 
+      : modelJSON as ModelConfig;
+    
     console.log("Model config summary:", {
       layers: modelConfig.config?.layers?.length || 'unknown',
       inputLayers: modelConfig.config?.input_layers || 'unknown',
