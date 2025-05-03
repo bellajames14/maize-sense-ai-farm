@@ -1,3 +1,4 @@
+
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from './diseaseUtils';
 
@@ -20,34 +21,70 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
       setTimeout(() => reject(new Error("Model download timed out after 30 seconds")), 30000);
     });
     
+    // Use explicit model loading options to help with the InputLayer issue
+    const modelLoadingOptions = {
+      strict: false,
+      weightPathPrefix: '', // Use default path
+    };
+    
     // Race the model loading against the timeout
     model = await Promise.race([
-      tf.loadLayersModel(MODEL_URL),
+      tf.loadLayersModel(MODEL_URL, modelLoadingOptions),
       timeoutPromise
     ]) as tf.LayersModel;
     
-    console.log("Model downloaded and loaded successfully");
-    console.log("Model summary:", model.summary());
+    console.log("Model downloaded successfully");
     
-    // Perform a simple prediction to ensure the model works
-    console.log("Warming up model with test tensor...");
-    const dummyTensor = tf.zeros([1, 224, 224, 3]);
-    const warmupResult = model.predict(dummyTensor);
-    tf.dispose(dummyTensor);
-    tf.dispose(warmupResult);
-    console.log("Model warm-up complete");
+    // Check model architecture and input shape
+    const modelConfig = model.toJSON();
+    console.log("Model config summary:", {
+      layers: modelConfig.config?.layers?.length || 'unknown',
+      inputLayers: modelConfig.config?.input_layers || 'unknown',
+      outputLayers: modelConfig.config?.output_layers || 'unknown'
+    });
+    
+    // Verify the model has layers properly configured
+    if (!modelConfig.config?.layers || modelConfig.config.layers.length === 0) {
+      throw new Error("Model loaded but has no layers defined");
+    }
+    
+    // Perform a simple prediction with default inputs to ensure the model works
+    try {
+      console.log("Warming up model with test tensor...");
+      // Create a tensor with the expected input shape for this kind of model (typically 1,224,224,3 for image models)
+      const dummyTensor = tf.zeros([1, 224, 224, 3]);
+      const warmupResult = model.predict(dummyTensor);
+      
+      if (Array.isArray(warmupResult)) {
+        warmupResult.forEach(tensor => tf.dispose(tensor));
+      } else {
+        tf.dispose(warmupResult);
+      }
+      
+      tf.dispose(dummyTensor);
+      console.log("Model warm-up complete");
+    } catch (warmupError) {
+      console.error("Model warm-up failed:", warmupError);
+      throw new Error(`Model loaded but failed validation: ${warmupError instanceof Error ? warmupError.message : "Unknown error"}`);
+    }
     
     return model;
   } catch (error) {
     console.error("Failed to load TensorFlow.js model:", error);
+    
+    // Check if it's an InputLayer error
+    if (error instanceof Error && error.message.includes('InputLayer')) {
+      throw new Error("The model has an issue with its input layer configuration. Please check the model architecture.");
+    }
     // Check if it's a CORS error
-    if (error instanceof Error && error.message.includes('CORS')) {
+    else if (error instanceof Error && error.message.includes('CORS')) {
       throw new Error("CORS error when loading model. The model server doesn't allow access from this website.");
     }
     // Check if it's a network error
     else if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('timed out'))) {
       throw new Error("Network error when downloading the model. Please check your internet connection and try again.");
     }
+    
     throw new Error(`Failed to load disease detection model: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };
