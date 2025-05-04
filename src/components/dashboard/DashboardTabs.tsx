@@ -15,7 +15,7 @@ export function DashboardTabs({ currentTab, onTabChange }: DashboardTabsProps) {
 
   return (
     <Tabs defaultValue={currentTab} className="space-y-6" onValueChange={onTabChange}>
-      <TabsList className="w-full grid grid-cols-3">
+      <TabsList className="w-full grid grid-cols-3 gap-1">
         <TabsTrigger value="disease">{translate("diseaseDetection")}</TabsTrigger>
         <TabsTrigger value="weather">{translate("weatherInsights")}</TabsTrigger>
         <TabsTrigger value="assistant">{translate("aiAssistant")}</TabsTrigger>

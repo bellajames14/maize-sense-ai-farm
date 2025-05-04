@@ -2,8 +2,8 @@
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from './diseaseUtils';
 
-// Use local model path
-const MODEL_URL = '/tfjs_model/model.json';
+// Use the Supabase-hosted model URL
+const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/model.json';
 let model: tf.LayersModel | null = null;
 
 // Load the model with improved handling and caching
@@ -18,7 +18,7 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
     
     // Shorter timeout for faster detection of issues
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Model loading timed out")), 5000);
+      setTimeout(() => reject(new Error("Model loading timed out")), 10000);
     });
     
     // Use explicit model loading options with cache options
@@ -32,6 +32,7 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
           ...init,
           headers,
           cache: 'force-cache', // Force using cached version when available
+          credentials: 'omit', // Avoid sending cookies to prevent CORS issues
         });
       }
     };

@@ -63,13 +63,13 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           }
         }
         
-        // Set a shorter timeout for model loading (3 seconds)
+        // Set a longer timeout for model loading (10 seconds)
         try {
           setLoadStatus("Loading model...");
           await Promise.race([
             loadModel(),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Model loading timeout")), 3000)
+              setTimeout(() => reject(new Error("Model loading timeout")), 10000)
             )
           ]);
           
