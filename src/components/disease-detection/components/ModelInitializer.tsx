@@ -25,20 +25,7 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
         setIsLoading(true);
         setLoadStatus("Initializing TensorFlow.js...");
         
-        // Enable memory tracking to improve performance
-        tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
-        tf.env().set('WEBGL_CPU_FORWARD', false); // Force GPU
-        
-        // Initialize TensorFlow.js
-        await tf.ready();
-        console.log("TensorFlow.js is ready");
-        setLoadStatus("TensorFlow ready. Loading model...");
-        
-        // Check if WebGL is available and working correctly
-        const backend = tf.getBackend();
-        console.log("Using backend:", backend);
-        
-        // On mobile devices, go straight to cloud analysis
+        // For mobile devices, always use cloud analysis
         if (isMobile) {
           console.log("Mobile device detected, using cloud analysis");
           setLoadStatus("Using cloud analysis for mobile");
@@ -53,6 +40,19 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           return;
         }
         
+        // Enable memory tracking to improve performance
+        tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
+        tf.env().set('WEBGL_CPU_FORWARD', false); // Force GPU
+        
+        // Initialize TensorFlow.js
+        await tf.ready();
+        console.log("TensorFlow.js is ready");
+        setLoadStatus("TensorFlow ready. Loading model...");
+        
+        // Check if WebGL is available and working correctly
+        const backend = tf.getBackend();
+        console.log("Using backend:", backend);
+        
         // Try to enforce WebGL backend if not already using it
         if (backend !== 'webgl') {
           try {
@@ -63,13 +63,19 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           }
         }
         
-        // Set a longer timeout for model loading (10 seconds)
+        // Add additional memory cleanup
+        tf.tidy(() => {
+          // Run a small operation to initialize backend
+          tf.zeros([1, 1, 1, 1]).dispose();
+        });
+        
+        // Set a longer timeout for model loading (15 seconds)
         try {
           setLoadStatus("Loading model...");
           await Promise.race([
             loadModel(),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Model loading timeout")), 10000)
+              setTimeout(() => reject(new Error("Model loading timeout")), 15000)
             )
           ]);
           
