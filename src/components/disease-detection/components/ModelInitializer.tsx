@@ -43,6 +43,9 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
         // Enable memory tracking to improve performance
         tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
         tf.env().set('WEBGL_CPU_FORWARD', false); // Force GPU
+        tf.env().set('WEBGL_VERSION', 2); // Try to use WebGL 2
+        tf.env().set('WEBGL_FORCE_F16_TEXTURES', false);
+        tf.env().set('WEBGL_PACK', true);
         
         // Initialize TensorFlow.js
         await tf.ready();
@@ -69,13 +72,13 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           tf.zeros([1, 1, 1, 1]).dispose();
         });
         
-        // Set a longer timeout for model loading (15 seconds)
+        // Set a longer timeout for model loading (30 seconds)
         try {
-          setLoadStatus("Loading model...");
+          setLoadStatus("Loading model (this may take a few moments)...");
           await Promise.race([
             loadModel(),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Model loading timeout")), 15000)
+              setTimeout(() => reject(new Error("Model loading timeout")), 30000)
             )
           ]);
           
@@ -98,7 +101,7 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           
           toast({
             title: "Using cloud analysis",
-            description: "Local model unavailable. Using cloud analysis instead.",
+            description: "Local model unavailable: " + (modelError instanceof Error ? modelError.message : "Unknown error") + ". Using cloud analysis instead.",
             variant: "default"
           });
         }

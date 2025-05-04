@@ -16,49 +16,61 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
   try {
     console.log("Starting model loading from:", MODEL_URL);
     
-    // Clear cache before loading to prevent corrupted model data
-    await tf.io.removeModel(MODEL_URL);
-    console.log("Cleared any cached model data");
+    // Skip cache clearing as it's causing issues with https scheme
+    // await tf.io.removeModel(MODEL_URL); // This was causing the error
+    
+    // Log TensorFlow.js version and backend being used
+    console.log("TensorFlow.js version:", tf.version.tfjs);
+    console.log("Using backend:", tf.getBackend());
     
     // Explicitly define the model loading configuration
-    const loadOptions = {
-      weightPathPrefix: '',  // Use the same directory as model.json for weights
-      fetchFunc: (path: string, init?: RequestInit) => {
+    const modelLoadPromise = tf.loadLayersModel(MODEL_URL, {
+      fetchFunc: async (path: string, init?: RequestInit) => {
         console.log(`Fetching model resource: ${path}`);
         
-        // Add custom headers for better reliability
-        const headers = new Headers(init?.headers);
-        headers.set('Cache-Control', 'no-cache');  // Try without cache first
-        headers.set('Pragma', 'no-cache');
+        // Custom fetch with retry logic for reliability
+        const maxRetries = 3;
+        let lastError;
         
-        return fetch(path, {
-          ...init,
-          headers,
-          credentials: 'omit',  // Don't send cookies
-          mode: 'cors',         // Explicit CORS mode
-        }).then(response => {
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${path}: ${response.status} ${response.statusText}`);
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            const response = await fetch(path, {
+              ...init,
+              cache: 'no-store', // Try to get fresh content
+              mode: 'cors',
+              credentials: 'omit'
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch ${path}: ${response.status} ${response.statusText}`);
+            }
+            
+            console.log(`Successfully fetched: ${path}`);
+            return response;
+          } catch (error) {
+            console.warn(`Attempt ${attempt + 1} failed for ${path}:`, error);
+            lastError = error;
+            // Wait before retrying
+            await new Promise(res => setTimeout(res, 1000));
           }
-          console.log(`Successfully fetched: ${path}`);
-          return response;
-        });
+        }
+        
+        throw lastError || new Error(`Failed to fetch ${path} after ${maxRetries} attempts`);
       }
-    };
-    
-    console.log("Attempting to load model with explicit configuration");
-    
-    // Use a longer timeout for model loading
-    const modelPromise = tf.loadLayersModel(MODEL_URL, loadOptions);
-    
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Model loading timed out")), 15000);
     });
     
-    model = await Promise.race([modelPromise, timeoutPromise]) as tf.LayersModel;
+    // Use a longer timeout for model loading
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Model loading timed out")), 30000); // Increased timeout to 30 seconds
+    });
+    
+    console.log("Waiting for model to load (timeout: 30s)");
+    model = await Promise.race([modelLoadPromise, timeoutPromise]) as tf.LayersModel;
     
     console.log("Model loaded successfully:", model);
-    console.log("Model input shape:", model.inputs[0].shape);
+    if (model.inputs && model.inputs[0]) {
+      console.log("Model input shape:", model.inputs[0].shape);
+    }
     
     // Warm up the model to ensure it works
     try {
@@ -84,22 +96,19 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
     console.error("Failed to load TensorFlow.js model:", error);
     
     // Provide a clear error message
-    if (error instanceof Error && error.message.includes('weights')) {
-      throw new Error("Missing model weights. Using alternative analysis method.");
-    }
-    else if (error instanceof Error && error.message.includes('InputLayer')) {
-      throw new Error("Model architecture issue. Using alternative analysis method.");
+    if (error instanceof Error && error.message.includes('InputLayer')) {
+      throw new Error("Model architecture issue. Check input shape definition.");
     }
     // Check if it's a CORS error
     else if (error instanceof Error && error.message.includes('CORS')) {
-      throw new Error("Access error loading model. Using alternative analysis method.");
+      throw new Error("Access error loading model. CORS issue detected.");
     }
     // Check if it's a network error
     else if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('timed out'))) {
-      throw new Error("Network issue loading model. Using alternative analysis method.");
+      throw new Error("Network issue loading model. Check your connection and try again.");
     }
     
-    throw new Error("Could not load disease model. Using alternative analysis method.");
+    throw new Error("Could not load disease model: " + (error instanceof Error ? error.message : String(error)));
   }
 };
 
