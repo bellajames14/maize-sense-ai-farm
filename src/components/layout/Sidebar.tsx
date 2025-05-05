@@ -36,7 +36,14 @@ export const MainSidebar = () => {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   
+  // Updated isActive function to handle tab routes
   const isActive = (path: string) => {
+    if (path.startsWith('/dashboard/')) {
+      const tab = path.split('/')[2];
+      return location.pathname === path || 
+             location.pathname === '/dashboard' && location.search === `?tab=${tab}` ||
+             location.pathname === '/dashboard' && tab === 'disease' && !location.search;
+    }
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
@@ -102,7 +109,7 @@ export const MainSidebar = () => {
               
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/dashboard/disease")} tooltip="Disease Detection">
-                  <Link to="/dashboard/disease">
+                  <Link to="/dashboard?tab=disease">
                     <Upload className="mr-2" />
                     <span>Disease Detection</span>
                   </Link>
@@ -111,7 +118,7 @@ export const MainSidebar = () => {
               
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/dashboard/weather")} tooltip="Weather Insights">
-                  <Link to="/dashboard/weather">
+                  <Link to="/dashboard?tab=weather">
                     <Cloud className="mr-2" />
                     <span>Weather Insights</span>
                   </Link>
@@ -120,7 +127,7 @@ export const MainSidebar = () => {
               
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/dashboard/assistant")} tooltip="AI Assistant">
-                  <Link to="/dashboard/assistant">
+                  <Link to="/dashboard?tab=assistant">
                     <MessageSquare className="mr-2" />
                     <span>AI Assistant</span>
                   </Link>
