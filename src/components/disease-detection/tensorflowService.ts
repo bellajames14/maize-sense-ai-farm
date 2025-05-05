@@ -16,55 +16,130 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
   try {
     console.log("Starting model loading from:", MODEL_URL);
     
-    // Skip cache clearing as it's causing issues with https scheme
-    // await tf.io.removeModel(MODEL_URL); // This was causing the error
-    
     // Log TensorFlow.js version and backend being used
     console.log("TensorFlow.js version:", tf.version.tfjs);
     console.log("Using backend:", tf.getBackend());
     
-    // Explicitly define the model loading configuration
-    const modelLoadPromise = tf.loadLayersModel(MODEL_URL, {
-      fetchFunc: async (path: string, init?: RequestInit) => {
-        console.log(`Fetching model resource: ${path}`);
-        
-        // Custom fetch with retry logic for reliability
-        const maxRetries = 3;
-        let lastError;
-        
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-          try {
-            const response = await fetch(path, {
-              ...init,
-              cache: 'no-store', // Try to get fresh content
-              mode: 'cors',
-              credentials: 'omit'
-            });
+    // Add memory management improvements
+    console.log("Configuring TensorFlow.js for optimal performance");
+    // Set memory management options for better performance
+    tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
+    tf.env().set('WEBGL_CPU_FORWARD', false); // Force GPU
+    tf.env().set('WEBGL_PACK', true);
+    
+    // Force garbage collection before loading the model
+    if (tf.getBackend() === 'webgl') {
+      console.log("Performing WebGL memory cleanup");
+      const gl = (tf.backend() as any).getGPGPUContext().gl;
+      if (gl && typeof gl.getParameter === 'function') {
+        // Run simple ops to test WebGL is working
+        const testTensor = tf.tensor([1, 2, 3]);
+        testTensor.dispose();
+      }
+    }
+    
+    // Pre-load the model weights URLs to ensure they're accessible
+    console.log("Pre-checking weight files availability");
+    const weightUrls = [
+      'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard1of3.bin',
+      'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard2of3.bin',
+      'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard3of3.bin'
+    ];
+    
+    // Check if all weight files are accessible
+    try {
+      const weightChecks = await Promise.all(
+        weightUrls.map(url => 
+          fetch(url, { method: 'HEAD', cache: 'no-store' })
+            .then(response => {
+              if (!response.ok) {
+                console.warn(`Weight file ${url} not accessible: ${response.status}`);
+                return false;
+              }
+              console.log(`Weight file ${url} accessible`);
+              return true;
+            })
+            .catch(err => {
+              console.warn(`Error checking weight file ${url}:`, err);
+              return false;
+            })
+        )
+      );
+      
+      if (!weightChecks.every(check => check)) {
+        console.warn("Some weight files are not accessible");
+      }
+    } catch (checkError) {
+      console.warn("Error checking weight files:", checkError);
+    }
+    
+    // Explicitly define the model loading configuration with progressive timeouts
+    console.log("Loading model with progressive timeouts");
+    
+    // Use a longer initial timeout for the full model load
+    const modelLoadPromise = new Promise<tf.LayersModel>(async (resolve, reject) => {
+      try {
+        const loadOptions = {
+          weightPathPrefix: 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/',
+          fetchFunc: async (path: string, init?: RequestInit) => {
+            console.log(`Fetching model resource: ${path}`);
             
-            if (!response.ok) {
-              throw new Error(`Failed to fetch ${path}: ${response.status} ${response.statusText}`);
+            // Custom fetch with retry logic for reliability
+            const maxRetries = 5;
+            let lastError;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+              try {
+                const response = await fetch(path, {
+                  ...init,
+                  cache: 'no-store', // Try to get fresh content
+                  mode: 'cors',
+                  credentials: 'omit',
+                  // Increasing timeout for large files
+                  signal: attempt < maxRetries - 1 ? 
+                    AbortSignal.timeout((attempt + 1) * 10000) : // Increasing timeouts for retries
+                    undefined // No timeout for final attempt
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch ${path}: ${response.status} ${response.statusText}`);
+                }
+                
+                console.log(`Successfully fetched: ${path}`);
+                return response;
+              } catch (error) {
+                console.warn(`Attempt ${attempt + 1} failed for ${path}:`, error);
+                lastError = error;
+                // Wait longer between retries
+                await new Promise(res => setTimeout(res, (attempt + 1) * 1000));
+              }
             }
             
-            console.log(`Successfully fetched: ${path}`);
-            return response;
-          } catch (error) {
-            console.warn(`Attempt ${attempt + 1} failed for ${path}:`, error);
-            lastError = error;
-            // Wait before retrying
-            await new Promise(res => setTimeout(res, 1000));
+            throw lastError || new Error(`Failed to fetch ${path} after ${maxRetries} attempts`);
           }
-        }
+        };
         
-        throw lastError || new Error(`Failed to fetch ${path} after ${maxRetries} attempts`);
+        // Split the loading into steps
+        console.log("Step 1: Loading model architecture...");
+        const modelJSON = await (await fetch(MODEL_URL, { cache: 'no-store' })).json();
+        
+        console.log("Step 2: Loading model weights...");
+        const loadedModel = await tf.loadLayersModel(MODEL_URL, loadOptions);
+        
+        console.log("Model loaded successfully");
+        model = loadedModel;
+        resolve(model);
+      } catch (error) {
+        reject(error);
       }
     });
     
     // Use a longer timeout for model loading
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Model loading timed out")), 30000); // Increased timeout to 30 seconds
+      setTimeout(() => reject(new Error("Model loading timed out")), 45000); // Increased timeout to 45 seconds
     });
     
-    console.log("Waiting for model to load (timeout: 30s)");
+    console.log("Waiting for model to load (timeout: 45s)");
     model = await Promise.race([modelLoadPromise, timeoutPromise]) as tf.LayersModel;
     
     console.log("Model loaded successfully:", model);

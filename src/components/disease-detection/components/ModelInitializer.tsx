@@ -40,6 +40,26 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           return;
         }
         
+        // Check for WebGL support first
+        try {
+          const canvas = document.createElement('canvas');
+          const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+          if (!gl) {
+            console.warn("WebGL not supported, using cloud analysis instead");
+            throw new Error("WebGL not supported by your browser");
+          }
+          
+          // Check WebGL limits
+          const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+          console.log("WebGL max texture size:", maxTextureSize);
+          if (maxTextureSize < 4096) {
+            console.warn("WebGL texture size limited, may affect performance");
+          }
+        } catch (webglError) {
+          console.warn("WebGL check failed:", webglError);
+          throw new Error("WebGL support issue detected");
+        }
+        
         // Enable memory tracking to improve performance
         tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
         tf.env().set('WEBGL_CPU_FORWARD', false); // Force GPU
@@ -72,15 +92,31 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           tf.zeros([1, 1, 1, 1]).dispose();
         });
         
-        // Set a longer timeout for model loading (30 seconds)
+        // Set a longer timeout for model loading (45 seconds)
         try {
           setLoadStatus("Loading model (this may take a few moments)...");
+          
+          // Show progress indication with staged messages
+          const modelLoadTimeout = 45000; // 45 seconds
+          const progressInterval = setInterval(() => {
+            setLoadStatus(prevStatus => {
+              if (prevStatus.includes("Loading model")) {
+                return "Still loading model... this can take some time on slower connections";
+              } else if (prevStatus.includes("Still loading")) {
+                return "Almost there, finalizing model loading...";
+              }
+              return prevStatus;
+            });
+          }, 10000);
+          
           await Promise.race([
             loadModel(),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error("Model loading timeout")), 30000)
+              setTimeout(() => reject(new Error("Model loading timeout")), modelLoadTimeout)
             )
           ]);
+          
+          clearInterval(progressInterval);
           
           console.log("Model loaded successfully");
           setLoadStatus("Model ready!");
