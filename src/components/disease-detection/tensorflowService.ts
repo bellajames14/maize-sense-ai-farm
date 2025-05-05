@@ -97,7 +97,7 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
                   credentials: 'omit',
                   // Increasing timeout for large files
                   signal: attempt < maxRetries - 1 ? 
-                    AbortSignal.timeout((attempt + 1) * 10000) : // Increasing timeouts for retries
+                    AbortSignal.timeout((attempt + 1) * 15000) : // Increasing timeouts for retries (15s per attempt)
                     undefined // No timeout for final attempt
                 });
                 
@@ -111,7 +111,7 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
                 console.warn(`Attempt ${attempt + 1} failed for ${path}:`, error);
                 lastError = error;
                 // Wait longer between retries
-                await new Promise(res => setTimeout(res, (attempt + 1) * 1000));
+                await new Promise(res => setTimeout(res, (attempt + 1) * 1500));
               }
             }
             
@@ -134,12 +134,12 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
       }
     });
     
-    // Use a longer timeout for model loading
+    // Use a longer timeout for model loading (60 seconds - 1 minute)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Model loading timed out")), 45000); // Increased timeout to 45 seconds
+      setTimeout(() => reject(new Error("Model loading timed out")), 60000); // Increased timeout to 60 seconds (1 minute)
     });
     
-    console.log("Waiting for model to load (timeout: 45s)");
+    console.log("Waiting for model to load (timeout: 60s)");
     model = await Promise.race([modelLoadPromise, timeoutPromise]) as tf.LayersModel;
     
     console.log("Model loaded successfully:", model);

@@ -19,7 +19,9 @@ serve(async (req) => {
 
     // Validate language parameter to prevent abuse
     const validLanguages = ["english", "yoruba"];
-    const validatedLanguage = validLanguages.includes(language) ? language : "english";
+    const validatedLanguage = validLanguages.includes(language.toLowerCase()) 
+      ? language.toLowerCase() 
+      : "english";
     
     console.log(`Processing message in language: ${validatedLanguage}`);
 

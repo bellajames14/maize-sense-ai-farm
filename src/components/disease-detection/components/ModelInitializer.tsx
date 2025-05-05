@@ -92,12 +92,12 @@ export const ModelInitializer = ({ onModelLoaded }: ModelInitializerProps) => {
           tf.zeros([1, 1, 1, 1]).dispose();
         });
         
-        // Set a longer timeout for model loading (45 seconds)
+        // Set a longer timeout for model loading (60 seconds)
         try {
           setLoadStatus("Loading model (this may take a few moments)...");
           
           // Show progress indication with staged messages
-          const modelLoadTimeout = 45000; // 45 seconds
+          const modelLoadTimeout = 60000; // 60 seconds (1 minute)
           const progressInterval = setInterval(() => {
             setLoadStatus(prevStatus => {
               if (prevStatus.includes("Loading model")) {
