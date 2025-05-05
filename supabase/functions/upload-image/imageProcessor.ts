@@ -19,10 +19,12 @@ export function generateUniqueFilePath(userId: string | null, fileName: string):
   return `${userId || 'anonymous'}_${timestamp}_${fileName}`;
 }
 
-import * as sharp from sharp; // or any other image processing library
-
-export async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
-  return sharp(imageBuffer)
-    .resize(224, 224)  // Match your model's expected input size
-    .toBuffer();
+// A simplified image preprocessing function that doesn't rely on sharp
+// Since we can't use sharp in Deno, we'll return the original image data
+// The actual resizing will be handled by the ML model or Gemini API
+export async function preprocessImage(imageBuffer: Uint8Array): Promise<Uint8Array> {
+  // In a Deno environment without sharp, we return the original image
+  // Any preprocessing needed would be handled by the client or the ML service
+  console.log("Image preprocessing requested - using original image");
+  return imageBuffer;
 }
