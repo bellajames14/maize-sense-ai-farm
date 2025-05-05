@@ -17,8 +17,14 @@ serve(async (req) => {
       throw new Error("Message is required");
     }
 
-    // Generate AI response
-    const aiResponse = await generateAIResponse(message, previousMessages, language);
+    // Validate language parameter to prevent abuse
+    const validLanguages = ["english", "yoruba"];
+    const validatedLanguage = validLanguages.includes(language) ? language : "english";
+    
+    console.log(`Processing message in language: ${validatedLanguage}`);
+
+    // Generate AI response with specified language
+    const aiResponse = await generateAIResponse(message, previousMessages, validatedLanguage);
 
     // Create Supabase client
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -30,7 +36,7 @@ serve(async (req) => {
           user_id: userId,
           user_message: message,
           ai_response: aiResponse,
-          language: language
+          language: validatedLanguage
         });
       } catch (dbError) {
         console.error("Error storing chat in database:", dbError);

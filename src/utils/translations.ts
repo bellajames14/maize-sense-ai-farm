@@ -1,4 +1,3 @@
-
 // English to Yoruba translations
 export const translations = {
   english: {
@@ -62,6 +61,15 @@ export const translations = {
     "askMaizeQuestion": "Ask a question about maize farming...",
     "send": "Send",
     "waitingForResponse": "Waiting for response...",
+    "Ask the AI assistant about maize farming": "Ask the AI assistant about maize farming",
+    "The AI assistant uses machine learning to provide farming advice": "The AI assistant uses machine learning to provide farming advice",
+    "Start a conversation with the AI assistant": "Start a conversation with the AI assistant",
+    "Try asking": "Try asking",
+    "Failed to process your request": "Failed to process your request",
+    "Sorry, I couldn't process your request. Please try again later.": "Sorry, I couldn't process your request. Please try again later.",
+    "Error": "Error",
+    "Language Changed": "Language Changed",
+    "Chat has been reset due to language change": "Chat has been reset due to language change",
     
     // Weather Insights
     "currentWeather": "Current Weather",
@@ -85,7 +93,23 @@ export const translations = {
     "affectedArea": "Affected Area Estimate",
     "treatmentTips": "Treatment Tips",
     "preventionTips": "Prevention Tips",
-    "uploadInstructions": "Upload a clear image of your maize plant for disease detection"
+    "uploadInstructions": "Upload a clear image of your maize plant for disease detection",
+    
+    // Preferences Updates
+    "Preferences Updated": "Preferences Updated",
+    "Language changed to": "Language changed to",
+    "Theme changed to": "Theme changed to",
+    
+    // Other
+    "profileUpdated": "Profile Updated",
+    "profileInformationUpdated": "Your profile information has been updated successfully",
+    "error": "Error",
+    "failedToUpdateProfile": "Failed to update profile. Please try again.",
+    "preferencesUpdated": "Preferences Updated",
+    "notificationPreferencesUpdated": "Your notification preferences have been updated successfully",
+    "failedToUpdatePreferences": "Failed to update preferences. Please try again.",
+    "savingChanges": "Saving Changes...",
+    "savingPreferences": "Saving Preferences..."
   },
   yoruba: {
     // Navigation
@@ -148,6 +172,15 @@ export const translations = {
     "askMaizeQuestion": "Beere ibeere nipa irugbin agbado...",
     "send": "Firanṣẹ",
     "waitingForResponse": "N duro fun idahun...",
+    "Ask the AI assistant about maize farming": "Beere lọwọ alawusa AI nipa irugbin agbado",
+    "The AI assistant uses machine learning to provide farming advice": "Alawusa AI nlo imọ ẹrọ lati pese imọran irugbin",
+    "Start a conversation with the AI assistant": "Bẹrẹ ibaraenisọrọ pẹlu alawusa AI",
+    "Try asking": "Gbiyanju lati beere",
+    "Failed to process your request": "Ikuna lati se ibeere re",
+    "Sorry, I couldn't process your request. Please try again later.": "Ma binu, mi ko le se ibeere re. Jowo gbiyanju lẹẹkansi nigbamii.",
+    "Error": "Aṣiṣe",
+    "Language Changed": "Ede Ti Paro",
+    "Chat has been reset due to language change": "Ibaraenisoro ti tun bere nitori iyipada ede",
     
     // Weather Insights
     "currentWeather": "Oju Ojo Lọwọlọwọ",
@@ -171,6 +204,22 @@ export const translations = {
     "affectedArea": "Agbegbe ti O ni Ipa",
     "treatmentTips": "Imọran Itọju",
     "preventionTips": "Imọran Idaabobo",
-    "uploadInstructions": "Gbe aworan to daju ti irugbin agbado re soke fun iwadi arun"
+    "uploadInstructions": "Gbe aworan to daju ti irugbin agbado re soke fun iwadi arun",
+    
+    // Preferences Updates
+    "Preferences Updated": "Awọn Afojusun Ti Ni Imudojuiwọn",
+    "Language changed to": "Ede ti yi pada si",
+    "Theme changed to": "Awọ awoṣe ti yi pada si",
+    
+    // Other
+    "profileUpdated": "Profaili Ti Ni Imudojuiwọn",
+    "profileInformationUpdated": "Alaye profaili rẹ ti ni imudojuiwọn ni aṣeyọri",
+    "error": "Aṣiṣe",
+    "failedToUpdateProfile": "Ikuna lati ṣe imudojuiwọn profaili. Jọwọ gbiyanju lẹẹkansi.",
+    "preferencesUpdated": "Awọn Afojusun Ti Ni Imudojuiwọn",
+    "notificationPreferencesUpdated": "Awọn afojusun ifitoniletanileti rẹ ti ni imudojuiwọn ni aṣeyọri",
+    "failedToUpdatePreferences": "Ikuna lati ṣe imudojuiwọn awọn afojusun. Jọwọ gbiyanju lẹẹkansi.",
+    "savingChanges": "Ń fi awọn ayipada pamọ...",
+    "savingPreferences": "Ń fi awọn afojusun pamọ..."
   }
 };

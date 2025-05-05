@@ -37,6 +37,18 @@ export function AIAssistant() {
     }
   }, [chatHistory]);
 
+  // Reset chat history when language changes
+  useEffect(() => {
+    // Only reset if there's existing chat history
+    if (chatHistory.length > 0) {
+      setChatHistory([]);
+      toast({
+        title: translate("Language Changed"),
+        description: translate("Chat has been reset due to language change"),
+      });
+    }
+  }, [language, toast, translate, chatHistory.length]);
+
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     
