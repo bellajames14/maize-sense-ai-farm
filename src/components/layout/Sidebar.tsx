@@ -30,11 +30,13 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePreferences } from "@/hooks/usePreferences";
 
 export const MainSidebar = () => {
   const location = useLocation();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const { translate } = usePreferences();
   
   // Updated isActive function to handle tab routes
   const isActive = (path: string) => {
@@ -95,41 +97,41 @@ export const MainSidebar = () => {
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>{translate("Main Navigation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard")} tooltip="Home">
+                <SidebarMenuButton asChild isActive={isActive("/dashboard")} tooltip={translate("home")}>
                   <Link to="/dashboard">
                     <Home className="mr-2" />
-                    <span>Home</span>
+                    <span>{translate("home")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/disease")} tooltip="Disease Detection">
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/disease")} tooltip={translate("diseaseDetection")}>
                   <Link to="/dashboard?tab=disease">
                     <Upload className="mr-2" />
-                    <span>Disease Detection</span>
+                    <span>{translate("diseaseDetection")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/weather")} tooltip="Weather Insights">
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/weather")} tooltip={translate("weatherInsights")}>
                   <Link to="/dashboard?tab=weather">
                     <Cloud className="mr-2" />
-                    <span>Weather Insights</span>
+                    <span>{translate("weatherInsights")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/assistant")} tooltip="AI Assistant">
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/assistant")} tooltip={translate("aiAssistant")}>
                   <Link to="/dashboard?tab=assistant">
                     <MessageSquare className="mr-2" />
-                    <span>AI Assistant</span>
+                    <span>{translate("aiAssistant")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -138,23 +140,23 @@ export const MainSidebar = () => {
         </SidebarGroup>
         
         <SidebarGroup>
-          <SidebarGroupLabel>Information</SidebarGroupLabel>
+          <SidebarGroupLabel>{translate("Information")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/knowledge")} tooltip="Knowledge Base">
+                <SidebarMenuButton asChild isActive={isActive("/knowledge")} tooltip={translate("knowledgeBase")}>
                   <Link to="/knowledge">
                     <Info className="mr-2" />
-                    <span>Knowledge Base</span>
+                    <span>{translate("knowledgeBase")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/alerts")} tooltip="Alerts">
+                <SidebarMenuButton asChild isActive={isActive("/alerts")} tooltip={translate("alerts")}>
                   <Link to="/alerts">
                     <Bell className="mr-2" />
-                    <span>Alerts & Notifications</span>
+                    <span>{translate("alerts")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -166,20 +168,20 @@ export const MainSidebar = () => {
       <SidebarFooter>
         <div className="w-full px-4 py-2 space-y-2">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive("/settings")} tooltip="Settings">
+            <SidebarMenuButton asChild isActive={isActive("/settings")} tooltip={translate("settings")}>
               <Link to="/settings">
                 <Settings className="mr-2" />
-                <span>Settings</span>
+                <span>{translate("settings")}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           
           {!user && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Sign In">
+              <SidebarMenuButton asChild tooltip={translate("Sign In")}>
                 <Link to="/login">
                   <User className="mr-2" />
-                  <span>Sign In</span>
+                  <span>{translate("Sign In")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -192,7 +194,7 @@ export const MainSidebar = () => {
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Logout</span>
+              <span>{translate("signOut")}</span>
             </Button>
           )}
         </div>

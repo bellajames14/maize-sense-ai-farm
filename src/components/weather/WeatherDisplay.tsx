@@ -1,6 +1,7 @@
 
 import { Cloud, CloudRain, Droplets, Thermometer, Wind, Sun, AlertTriangle, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePreferences } from "@/hooks/usePreferences";
 
 interface WeatherData {
   temperature: number;
@@ -35,6 +36,8 @@ export const WeatherDisplay = ({
   onSave,
   isUserLoggedIn 
 }: WeatherDisplayProps) => {
+  const { translate } = usePreferences();
+  
   // Map weather condition to appropriate icons
   const getWeatherIcon = (condition: string) => {
     switch (condition.toLowerCase()) {
@@ -63,7 +66,7 @@ export const WeatherDisplay = ({
   if (!weather) {
     return (
       <div className="h-48 flex items-center justify-center text-muted-foreground">
-        No weather data available
+        {translate("No weather data available")}
       </div>
     );
   }
@@ -81,19 +84,19 @@ export const WeatherDisplay = ({
       <div className="grid grid-cols-2 gap-4 w-full">
         <div className="flex items-center">
           <Droplets className="h-5 w-5 mr-2 text-blue-500" />
-          <span>{weather.humidity}% Humidity</span>
+          <span>{weather.humidity}% {translate("humidity")}</span>
         </div>
         <div className="flex items-center">
           <Wind className="h-5 w-5 mr-2 text-gray-500" />
-          <span>{weather.windSpeed} km/h</span>
+          <span>{weather.windSpeed} {translate("windSpeed")}</span>
         </div>
         <div className="flex items-center">
           <CloudRain className="h-5 w-5 mr-2 text-blue-400" />
-          <span>{weather.rainfall} mm Rain</span>
+          <span>{weather.rainfall} mm {translate("precipitation")}</span>
         </div>
         <div className="flex items-center">
           <Thermometer className="h-5 w-5 mr-2 text-red-500" />
-          <span>Feels like {weather.temperature}°C</span>
+          <span>{translate("Feels like")} {weather.temperature}°C</span>
         </div>
       </div>
       
@@ -104,11 +107,11 @@ export const WeatherDisplay = ({
           className="mt-4 bg-green-700 hover:bg-green-800 w-full sm:w-auto"
         >
           {isSaving ? (
-            <span>Saving...</span>
+            <span>{translate("Saving...")}</span>
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Save Weather Data
+              {translate("Save Weather Data")}
             </>
           )}
         </Button>

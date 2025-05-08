@@ -1,3 +1,4 @@
+
 // English to Yoruba translations
 export const translations = {
   english: {
@@ -13,6 +14,9 @@ export const translations = {
     "notifications": "Notifications",
     "preferences": "Preferences",
     "signOut": "Sign Out",
+    "Sign In": "Sign In",
+    "Main Navigation": "Main Navigation",
+    "Information": "Information",
     
     // Dashboard
     "totalScans": "Total Scans",
@@ -84,6 +88,20 @@ export const translations = {
     "windSpeed": "Wind Speed",
     "condition": "Condition",
     "recommendations": "Recommendations",
+    "Weather conditions for your farm location": "Weather conditions for your farm location",
+    "Based on current and forecasted weather conditions": "Based on current and forecasted weather conditions",
+    "No weather data available": "No weather data available",
+    "No weather recommendations available": "No weather recommendations available",
+    "Update weather data to get personalized farming recommendations": "Update weather data to get personalized farming recommendations",
+    "Weather Alert": "Weather Alert",
+    "Irrigation Recommendations": "Irrigation Recommendations",
+    "Disease Prevention": "Disease Prevention",
+    "Pest Management": "Pest Management",
+    "Feels like": "Feels like",
+    "Saving...": "Saving...",
+    "Save Weather Data": "Save Weather Data",
+    "Login to Save Recommendations": "Login to Save Recommendations",
+    "Refresh Weather Data": "Refresh Weather Data",
     
     // Disease Detection
     "uploadImage": "Upload Image",
@@ -94,6 +112,25 @@ export const translations = {
     "treatmentTips": "Treatment Tips",
     "preventionTips": "Prevention Tips",
     "uploadInstructions": "Upload a clear image of your maize plant for disease detection",
+    "Maize Disease Detection": "Maize Disease Detection",
+    "Upload an image of your maize plant to detect diseases and receive treatment advice.": "Upload an image of your maize plant to detect diseases and receive treatment advice.",
+    "Analysis Results": "Analysis Results",
+    "Disease detection results and treatment recommendations": "Disease detection results and treatment recommendations",
+    "Analysis error": "Analysis error",
+    "Upload and analyze an image to see results": "Upload and analyze an image to see results",
+    "Analysis Error": "Analysis Error",
+    "Try Again": "Try Again",
+    "No analysis results yet": "No analysis results yet",
+    "Upload an image and click Analyze to get started": "Upload an image and click Analyze to get started",
+    "Analyzing your image...": "Analyzing your image...",
+    "Detected Disease": "Detected Disease",
+    "Confidence": "Confidence",
+    "Affected Area": "Affected Area",
+    "Recommendation": "Recommendation",
+    "Treatment Tips": "Treatment Tips",
+    "Reset": "Reset",
+    "Save Results": "Save Results",
+    "Login to Save": "Login to Save",
     
     // Preferences Updates
     "Preferences Updated": "Preferences Updated",
@@ -124,6 +161,9 @@ export const translations = {
     "notifications": "Ifitoniletaniwo",
     "preferences": "Afojusun",
     "signOut": "Jade Sinu",
+    "Sign In": "Wole Sinu",
+    "Main Navigation": "Atoka Akọkọ",
+    "Information": "Alaye",
     
     // Dashboard
     "totalScans": "Gbogbo Iwadi",
@@ -195,6 +235,20 @@ export const translations = {
     "windSpeed": "Iyara Afẹfẹ",
     "condition": "Ipo",
     "recommendations": "Awọn Imọran",
+    "Weather conditions for your farm location": "Ipo oju ojo fun ipo oko re",
+    "Based on current and forecasted weather conditions": "Da lori ipo oju ojo lọwọlọwọ ati asọtẹlẹ",
+    "No weather data available": "Ko si data oju ojo ti o wa",
+    "No weather recommendations available": "Ko si awọn imọran oju ojo ti o wa",
+    "Update weather data to get personalized farming recommendations": "Imudojuiwọn data oju ojo lati gba awọn imọran irugbin ti o ni ifarahan",
+    "Weather Alert": "Ikilo Oju Ojo",
+    "Irrigation Recommendations": "Awọn Imọran Iwẹnumi",
+    "Disease Prevention": "Idaabobo Arun",
+    "Pest Management": "Isakoso Kokoro",
+    "Feels like": "O dabi",
+    "Saving...": "N fi pamọ...",
+    "Save Weather Data": "Fi Data Oju Ojo Pamọ",
+    "Login to Save Recommendations": "Wole Lati Fi Awọn Imọran Pamọ",
+    "Refresh Weather Data": "Imudojuiwọn Data Oju Ojo",
     
     // Disease Detection
     "uploadImage": "Gbe Aworan Soke",
@@ -205,6 +259,25 @@ export const translations = {
     "treatmentTips": "Imọran Itọju",
     "preventionTips": "Imọran Idaabobo",
     "uploadInstructions": "Gbe aworan to daju ti irugbin agbado re soke fun iwadi arun",
+    "Maize Disease Detection": "Iwadi Arun Agbado",
+    "Upload an image of your maize plant to detect diseases and receive treatment advice.": "Gbe aworan irugbin agbado rẹ soke lati ṣe iwadii awọn arun ati gba imọran itọju.",
+    "Analysis Results": "Awọn Esi Itupale",
+    "Disease detection results and treatment recommendations": "Awọn esi iwadi arun ati awọn imọran itọju",
+    "Analysis error": "Aṣiṣe itupale",
+    "Upload and analyze an image to see results": "Gbe aworan soke ki o ṣe itupale lati ri awọn esi",
+    "Analysis Error": "Aṣiṣe Itupale",
+    "Try Again": "Gbiyanju Lẹẹkansi",
+    "No analysis results yet": "Ko si awọn esi itupale sibẹsibẹ",
+    "Upload an image and click Analyze to get started": "Gbe aworan soke ki o tẹ Ṣe Itupale lati bẹrẹ",
+    "Analyzing your image...": "Ṣe itupale aworan rẹ...",
+    "Detected Disease": "Arun Ti A Ri",
+    "Confidence": "Idaniloju",
+    "Affected Area": "Agbegbe ti O ni Ipa",
+    "Recommendation": "Imọran",
+    "Treatment Tips": "Imọran Itọju",
+    "Reset": "Tun Bẹrẹ",
+    "Save Results": "Fi Awọn Esi Pamọ",
+    "Login to Save": "Wole Lati Fi Pamọ",
     
     // Preferences Updates
     "Preferences Updated": "Awọn Afojusun Ti Ni Imudojuiwọn",

@@ -6,10 +6,13 @@ import { AnalysisResults } from "./AnalysisResults";
 import { ModelInitializer } from "./components/ModelInitializer";
 import { useDiseaseAnalysis } from "./hooks/useDiseaseAnalysis";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePreferences } from "@/hooks/usePreferences";
 
 export const DiseaseDetection = () => {
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const isMobile = useIsMobile();
+  const { translate } = usePreferences();
+  
   const {
     selectedFile,
     previewUrl,
@@ -28,9 +31,9 @@ export const DiseaseDetection = () => {
     <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
       <Card>
         <CardHeader>
-          <CardTitle>Maize Disease Detection</CardTitle>
+          <CardTitle>{translate("Maize Disease Detection")}</CardTitle>
           <CardDescription>
-            Upload an image of your maize plant to detect diseases and receive treatment advice.
+            {translate("Upload an image of your maize plant to detect diseases and receive treatment advice.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -57,13 +60,13 @@ export const DiseaseDetection = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Analysis Results</CardTitle>
+          <CardTitle>{translate("Analysis Results")}</CardTitle>
           <CardDescription>
             {analysisResult 
-              ? "Disease detection results and treatment recommendations"
+              ? translate("Disease detection results and treatment recommendations")
               : analysisError
-                ? "Analysis error"
-                : "Upload and analyze an image to see results"}
+                ? translate("Analysis error")
+                : translate("Upload and analyze an image to see results")}
           </CardDescription>
         </CardHeader>
         <CardContent>

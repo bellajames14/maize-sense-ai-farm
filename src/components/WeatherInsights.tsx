@@ -6,10 +6,12 @@ import { LocationSearch } from "./weather/LocationSearch";
 import { WeatherDisplay } from "./weather/WeatherDisplay";
 import { WeatherRecommendations, WeatherActionFooter } from "./weather/WeatherRecommendations";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import { usePreferences } from "@/hooks/usePreferences";
 
 export const WeatherInsights = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { translate } = usePreferences();
   
   const {
     location,
@@ -25,9 +27,9 @@ export const WeatherInsights = () => {
     <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
       <Card className="col-span-1">
         <CardHeader>
-          <CardTitle>Current Weather</CardTitle>
+          <CardTitle>{translate("currentWeather")}</CardTitle>
           <CardDescription>
-            Weather conditions for your farm location
+            {translate("Weather conditions for your farm location")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -50,9 +52,9 @@ export const WeatherInsights = () => {
 
       <Card className={`col-span-1 ${isMobile ? '' : 'lg:col-span-2'}`}>
         <CardHeader>
-          <CardTitle>Farming Recommendations</CardTitle>
+          <CardTitle>{translate("farmingTips")}</CardTitle>
           <CardDescription>
-            Based on current and forecasted weather conditions
+            {translate("Based on current and forecasted weather conditions")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

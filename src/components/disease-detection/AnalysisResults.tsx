@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { AlertCircle, Upload, Save, Database, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFarmerFriendlyName, formatConfidence } from "./diseaseUtils";
+import { usePreferences } from "@/hooks/usePreferences";
 
 export interface DiseaseAnalysisResult {
   disease: string;
@@ -32,6 +33,7 @@ export const AnalysisResults = ({
   onReset,
 }: AnalysisResultsProps) => {
   const { user } = useAuth();
+  const { translate } = usePreferences();
 
   // Get farmer-friendly disease name
   const farmerFriendlyName = analysisResult 
@@ -44,46 +46,46 @@ export const AnalysisResults = ({
         <div className="flex flex-col items-center justify-center space-y-4 p-4">
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Analysis Error</AlertTitle>
+            <AlertTitle>{translate("Analysis Error")}</AlertTitle>
             <AlertDescription>{analysisError}</AlertDescription>
           </Alert>
-          <Button onClick={onReset} variant="outline">Try Again</Button>
+          <Button onClick={onReset} variant="outline">{translate("Try Again")}</Button>
         </div>
       ) : !analysisResult && !isAnalyzing ? (
         <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground">
           <AlertCircle className="h-10 w-10 mb-4" />
-          <p>No analysis results yet</p>
-          <p className="text-sm">Upload an image and click Analyze to get started</p>
+          <p>{translate("No analysis results yet")}</p>
+          <p className="text-sm">{translate("Upload an image and click Analyze to get started")}</p>
         </div>
       ) : isAnalyzing ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <Upload className="h-10 w-10 mb-4 animate-pulse" />
-          <p>Analyzing your image...</p>
+          <p>{translate("Analyzing your image...")}</p>
           <Progress value={uploadProgress} className="w-2/3 h-2 mt-4" />
         </div>
       ) : analysisResult && (
         <>
           <div className="space-y-2">
-            <h3 className="font-medium">Detected Disease</h3>
+            <h3 className="font-medium">{translate("Detected Disease")}</h3>
             <Alert variant={analysisResult.disease === "Healthy" ? "default" : "destructive"}>
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>{farmerFriendlyName}</AlertTitle>
               <AlertDescription className="mt-2">
-                Confidence: {formatConfidence(analysisResult.confidence)}
-                {analysisResult.affectedArea && ` | Affected Area: ${analysisResult.affectedArea}`}
+                {translate("Confidence")}: {formatConfidence(analysisResult.confidence)}
+                {analysisResult.affectedArea && ` | ${translate("Affected Area")}: ${analysisResult.affectedArea}`}
               </AlertDescription>
             </Alert>
           </div>
           
           <div className="space-y-2">
-            <h3 className="font-medium">Recommendation</h3>
+            <h3 className="font-medium">{translate("Recommendation")}</h3>
             <div className="bg-muted rounded-lg p-3 text-sm">
               {analysisResult.treatment}
             </div>
           </div>
           
           <div className="space-y-2">
-            <h3 className="font-medium">Treatment Tips</h3>
+            <h3 className="font-medium">{translate("Treatment Tips")}</h3>
             <div className="bg-muted rounded-lg p-3 text-sm">
               {analysisResult.prevention}
             </div>
@@ -93,7 +95,7 @@ export const AnalysisResults = ({
 
       <div className="flex justify-between mt-4">
         <Button variant="outline" onClick={onReset} disabled={!analysisResult && !analysisError}>
-          Reset
+          {translate("Reset")}
         </Button>
         <Button 
           className="bg-green-700 hover:bg-green-800"
@@ -103,12 +105,12 @@ export const AnalysisResults = ({
           {user ? (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Save Results
+              {translate("Save Results")}
             </>
           ) : (
             <>
               <Database className="mr-2 h-4 w-4" />
-              Login to Save
+              {translate("Login to Save")}
             </>
           )}
         </Button>
