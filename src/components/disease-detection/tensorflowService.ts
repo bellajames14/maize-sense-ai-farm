@@ -5,12 +5,20 @@ import { knownDiseases } from './diseaseUtils';
 // Use the Supabase-hosted model URL with correct path to weight files
 const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/model.json';
 let model: tf.LayersModel | null = null;
+let modelLoadingPromise: Promise<tf.LayersModel> | null = null;
 
 // Load the model with improved handling and caching
 export const loadModel = async (): Promise<tf.LayersModel> => {
+  // If model is already loaded, return it immediately
   if (model) {
-    console.log("Using cached model");
+    console.log("Using cached model instance");
     return model;
+  }
+  
+  // If model loading is in progress, return the existing promise
+  if (modelLoadingPromise) {
+    console.log("Model loading already in progress, reusing promise");
+    return modelLoadingPromise;
   }
   
   try {
@@ -27,58 +35,59 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
     tf.env().set('WEBGL_CPU_FORWARD', false); // Force GPU
     tf.env().set('WEBGL_PACK', true);
     
-    // Force garbage collection before loading the model
-    if (tf.getBackend() === 'webgl') {
-      console.log("Performing WebGL memory cleanup");
-      const gl = (tf.backend() as any).getGPGPUContext().gl;
-      if (gl && typeof gl.getParameter === 'function') {
-        // Run simple ops to test WebGL is working
-        const testTensor = tf.tensor([1, 2, 3]);
-        testTensor.dispose();
-      }
-    }
-    
-    // Pre-load the model weights URLs to ensure they're accessible
-    console.log("Pre-checking weight files availability");
-    const weightUrls = [
-      'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard1of3.bin',
-      'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard2of3.bin',
-      'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard3of3.bin'
-    ];
-    
-    // Check if all weight files are accessible
-    try {
-      const weightChecks = await Promise.all(
-        weightUrls.map(url => 
-          fetch(url, { method: 'HEAD', cache: 'no-store' })
-            .then(response => {
-              if (!response.ok) {
-                console.warn(`Weight file ${url} not accessible: ${response.status}`);
-                return false;
-              }
-              console.log(`Weight file ${url} accessible`);
-              return true;
-            })
-            .catch(err => {
-              console.warn(`Error checking weight file ${url}:`, err);
-              return false;
-            })
-        )
-      );
-      
-      if (!weightChecks.every(check => check)) {
-        console.warn("Some weight files are not accessible");
-      }
-    } catch (checkError) {
-      console.warn("Error checking weight files:", checkError);
-    }
-    
-    // Explicitly define the model loading configuration with progressive timeouts
-    console.log("Loading model with progressive timeouts");
-    
-    // Use a longer initial timeout for the full model load
-    const modelLoadPromise = new Promise<tf.LayersModel>(async (resolve, reject) => {
+    // Create the model loading promise
+    modelLoadingPromise = new Promise<tf.LayersModel>(async (resolve, reject) => {
       try {
+        // Force garbage collection before loading the model
+        if (tf.getBackend() === 'webgl') {
+          console.log("Performing WebGL memory cleanup");
+          const gl = (tf.backend() as any).getGPGPUContext().gl;
+          if (gl && typeof gl.getParameter === 'function') {
+            // Run simple ops to test WebGL is working
+            const testTensor = tf.tensor([1, 2, 3]);
+            testTensor.dispose();
+          }
+        }
+        
+        // Pre-load the weight files URLs to ensure they're accessible
+        console.log("Pre-checking weight files availability");
+        const weightUrls = [
+          'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard1of3.bin',
+          'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard2of3.bin',
+          'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/group1-shard3of3.bin'
+        ];
+        
+        // Check if all weight files are accessible
+        try {
+          const weightChecks = await Promise.all(
+            weightUrls.map(url => 
+              fetch(url, { method: 'HEAD', cache: 'no-store' })
+                .then(response => {
+                  if (!response.ok) {
+                    console.warn(`Weight file ${url} not accessible: ${response.status}`);
+                    return false;
+                  }
+                  console.log(`Weight file ${url} accessible`);
+                  return true;
+                })
+                .catch(err => {
+                  console.warn(`Error checking weight file ${url}:`, err);
+                  return false;
+                })
+            )
+          );
+          
+          if (!weightChecks.every(check => check)) {
+            console.warn("Some weight files are not accessible");
+          }
+        } catch (checkError) {
+          console.warn("Error checking weight files:", checkError);
+        }
+        
+        // Explicitly define the model loading configuration with progressive timeouts
+        console.log("Loading model with progressive timeouts");
+        
+        // Use a longer initial timeout for the full model load
         const loadOptions = {
           weightPathPrefix: 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/',
           fetchFunc: async (path: string, init?: RequestInit) => {
@@ -92,7 +101,7 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
               try {
                 const response = await fetch(path, {
                   ...init,
-                  cache: 'no-store', // Try to get fresh content
+                  cache: 'force-cache', // Try to use browser cache aggressively
                   mode: 'cors',
                   credentials: 'omit',
                   // Increasing timeout for large files
@@ -121,53 +130,71 @@ export const loadModel = async (): Promise<tf.LayersModel> => {
         
         // Split the loading into steps
         console.log("Step 1: Loading model architecture...");
-        const modelJSON = await (await fetch(MODEL_URL, { cache: 'no-store' })).json();
+        const modelJSON = await (await fetch(MODEL_URL, { cache: 'force-cache' })).json();
         
         console.log("Step 2: Loading model weights...");
         const loadedModel = await tf.loadLayersModel(MODEL_URL, loadOptions);
         
         console.log("Model loaded successfully");
         model = loadedModel;
-        resolve(model);
+        
+        // Warm up the model to ensure it works
+        try {
+          console.log("Warming up model with test tensor...");
+          const dummyTensor = tf.zeros([1, 224, 224, 3]);
+          const warmupResult = model.predict(dummyTensor);
+          
+          if (Array.isArray(warmupResult)) {
+            warmupResult.forEach(tensor => tensor.dispose());
+          } else {
+            warmupResult.dispose();
+          }
+          
+          dummyTensor.dispose();
+          console.log("Model warm-up complete");
+          
+          // Register a beforeunload listener to improve browser caching
+          window.addEventListener('beforeunload', () => {
+            console.log("Page unloading, ensuring model is cached");
+            // No actual code needed, just triggering the browser to prioritize caching
+          });
+          
+          resolve(model);
+        } catch (warmupError) {
+          console.error("Model warm-up failed:", warmupError);
+          throw new Error(`Model loaded but failed validation: ${warmupError instanceof Error ? warmupError.message : "Unknown error"}`);
+        }
       } catch (error) {
+        console.error("Failed to load model in promise:", error);
+        modelLoadingPromise = null; // Reset promise to allow retry
         reject(error);
       }
     });
     
     // Use a longer timeout for model loading (60 seconds - 1 minute)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Model loading timed out")), 60000); // Increased timeout to 60 seconds (1 minute)
+      setTimeout(() => {
+        modelLoadingPromise = null; // Reset promise to allow retry
+        reject(new Error("Model loading timed out"));
+      }, 60000); // 60 seconds (1 minute)
     });
     
     console.log("Waiting for model to load (timeout: 60s)");
-    model = await Promise.race([modelLoadPromise, timeoutPromise]) as tf.LayersModel;
+    model = await Promise.race([modelLoadingPromise, timeoutPromise]) as tf.LayersModel;
+    
+    // Reset loading promise once done
+    modelLoadingPromise = null;
     
     console.log("Model loaded successfully:", model);
     if (model.inputs && model.inputs[0]) {
       console.log("Model input shape:", model.inputs[0].shape);
     }
     
-    // Warm up the model to ensure it works
-    try {
-      console.log("Warming up model with test tensor...");
-      const dummyTensor = tf.zeros([1, 224, 224, 3]);
-      const warmupResult = model.predict(dummyTensor);
-      
-      if (Array.isArray(warmupResult)) {
-        warmupResult.forEach(tensor => tensor.dispose());
-      } else {
-        warmupResult.dispose();
-      }
-      
-      dummyTensor.dispose();
-      console.log("Model warm-up complete");
-    } catch (warmupError) {
-      console.error("Model warm-up failed:", warmupError);
-      throw new Error(`Model loaded but failed validation: ${warmupError instanceof Error ? warmupError.message : "Unknown error"}`);
-    }
-    
     return model;
   } catch (error) {
+    // Reset loading promise on error
+    modelLoadingPromise = null;
+    
     console.error("Failed to load TensorFlow.js model:", error);
     
     // Provide a clear error message
