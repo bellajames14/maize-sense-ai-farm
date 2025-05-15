@@ -1,0 +1,31 @@
+
+// Disease Detection-related English translations
+export const diseaseDetectionTranslations = {
+  "uploadImage": "Upload Image",
+  "scanImage": "Scan Image",
+  "diseaseResults": "Disease Detection Results",
+  "confidence": "Confidence",
+  "affectedArea": "Affected Area Estimate",
+  "treatmentTips": "Treatment Tips",
+  "preventionTips": "Prevention Tips",
+  "uploadInstructions": "Upload a clear image of your maize plant for disease detection",
+  "Maize Disease Detection": "Maize Disease Detection",
+  "Upload an image of your maize plant to detect diseases and receive treatment advice.": "Upload an image of your maize plant to detect diseases and receive treatment advice.",
+  "Analysis Results": "Analysis Results",
+  "Disease detection results and treatment recommendations": "Disease detection results and treatment recommendations",
+  "Analysis error": "Analysis error",
+  "Upload and analyze an image to see results": "Upload and analyze an image to see results",
+  "Analysis Error": "Analysis Error",
+  "Try Again": "Try Again",
+  "No analysis results yet": "No analysis results yet",
+  "Upload an image and click Analyze to get started": "Upload an image and click Analyze to get started",
+  "Analyzing your image...": "Analyzing your image...",
+  "Detected Disease": "Detected Disease",
+  "Confidence": "Confidence",
+  "Affected Area": "Affected Area",
+  "Recommendation": "Recommendation",
+  "Treatment Tips": "Treatment Tips",
+  "Reset": "Reset",
+  "Save Results": "Save Results",
+  "Login to Save": "Login to Save"
+};

@@ -1,0 +1,30 @@
+
+// Weather-related Yoruba translations
+export const weatherTranslations = {
+  "currentWeather": "Oju Ojo Lọwọlọwọ",
+  "weatherForecast": "Asọtẹlẹ Oju Ojo",
+  "farmingTips": "Imọran Agbe",
+  "searchLocation": "Wa Ipo",
+  "getWeather": "Gba Oju Ojo",
+  "temperature": "Iwọn Oru",
+  "humidity": "Irugbin",
+  "pressure": "Ifunpa",
+  "precipitation": "Ojo",
+  "windSpeed": "Iyara Afẹfẹ",
+  "condition": "Ipo",
+  "recommendations": "Awọn Imọran",
+  "Weather conditions for your farm location": "Ipo oju ojo fun ipo oko re",
+  "Based on current and forecasted weather conditions": "Da lori ipo oju ojo lọwọlọwọ ati asọtẹlẹ",
+  "No weather data available": "Ko si data oju ojo ti o wa",
+  "No weather recommendations available": "Ko si awọn imọran oju ojo ti o wa",
+  "Update weather data to get personalized farming recommendations": "Imudojuiwọn data oju ojo lati gba awọn imọran irugbin ti o ni ifarahan",
+  "Weather Alert": "Ikilo Oju Ojo",
+  "Irrigation Recommendations": "Awọn Imọran Iwẹnumi",
+  "Disease Prevention": "Idaabobo Arun",
+  "Pest Management": "Isakoso Kokoro",
+  "Feels like": "O dabi",
+  "Saving...": "N fi pamọ...",
+  "Save Weather Data": "Fi Data Oju Ojo Pamọ",
+  "Login to Save Recommendations": "Wole Lati Fi Awọn Imọran Pamọ",
+  "Refresh Weather Data": "Imudojuiwọn Data Oju Ojo"
+};

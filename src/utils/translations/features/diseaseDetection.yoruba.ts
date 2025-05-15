@@ -1,0 +1,31 @@
+
+// Disease Detection-related Yoruba translations
+export const diseaseDetectionTranslations = {
+  "uploadImage": "Gbe Aworan Soke",
+  "scanImage": "Yẹ Aworan Wo",
+  "diseaseResults": "Awọn Esi Iwadi Arun",
+  "confidence": "Idaniloju",
+  "affectedArea": "Agbegbe ti O ni Ipa",
+  "treatmentTips": "Imọran Itọju",
+  "preventionTips": "Imọran Idaabobo",
+  "uploadInstructions": "Gbe aworan to daju ti irugbin agbado re soke fun iwadi arun",
+  "Maize Disease Detection": "Iwadi Arun Agbado",
+  "Upload an image of your maize plant to detect diseases and receive treatment advice.": "Gbe aworan irugbin agbado rẹ soke lati ṣe iwadii awọn arun ati gba imọran itọju.",
+  "Analysis Results": "Awọn Esi Itupale",
+  "Disease detection results and treatment recommendations": "Awọn esi iwadi arun ati awọn imọran itọju",
+  "Analysis error": "Aṣiṣe itupale",
+  "Upload and analyze an image to see results": "Gbe aworan soke ki o ṣe itupale lati ri awọn esi",
+  "Analysis Error": "Aṣiṣe Itupale",
+  "Try Again": "Gbiyanju Lẹẹkansi",
+  "No analysis results yet": "Ko si awọn esi itupale sibẹsibẹ",
+  "Upload an image and click Analyze to get started": "Gbe aworan soke ki o tẹ Ṣe Itupale lati bẹrẹ",
+  "Analyzing your image...": "Ṣe itupale aworan rẹ...",
+  "Detected Disease": "Arun Ti A Ri",
+  "Confidence": "Idaniloju",
+  "Affected Area": "Agbegbe ti O ni Ipa",
+  "Recommendation": "Imọran",
+  "Treatment Tips": "Imọran Itọju",
+  "Reset": "Tun Bẹrẹ",
+  "Save Results": "Fi Awọn Esi Pamọ",
+  "Login to Save": "Wole Lati Fi Pamọ"
+};
