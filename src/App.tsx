@@ -16,6 +16,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+// Create a query client instance
 const queryClient = new QueryClient();
 
 const App = () => (
