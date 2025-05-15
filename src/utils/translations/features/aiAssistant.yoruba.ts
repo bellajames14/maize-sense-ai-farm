@@ -18,5 +18,6 @@ export const aiAssistantTranslations = {
   "Error occurred": "Aṣiṣe ti ṣẹlẹ",
   "Click to see details": "Tẹ lati wo awọn alaye",
   "Error Details": "Alaye Aṣiṣe",
-  "Close": "Pa"
+  "Close": "Pa",
+  "aiAssistant": "Alawusa AI"
 };

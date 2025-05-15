@@ -16,7 +16,7 @@ export const predictDisease = async (imageElement: HTMLImageElement): Promise<{d
     console.log("Image preprocessed successfully");
     
     console.log("Running inference...");
-    // Get prediction - use executeAsync for better performance on WebGL backend
+    // Get prediction
     const predictions = await loadedModel.predict(processedImg) as tf.Tensor;
     
     // Use typed array for faster processing

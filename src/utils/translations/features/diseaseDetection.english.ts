@@ -27,5 +27,6 @@ export const diseaseDetectionTranslations = {
   "Treatment Tips": "Treatment Tips",
   "Reset": "Reset",
   "Save Results": "Save Results",
-  "Login to Save": "Login to Save"
+  "Login to Save": "Login to Save",
+  "diseaseDetection": "Disease Detection"
 };

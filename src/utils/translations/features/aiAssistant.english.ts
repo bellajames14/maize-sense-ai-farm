@@ -18,5 +18,6 @@ export const aiAssistantTranslations = {
   "Error occurred": "Error occurred",
   "Click to see details": "Click to see details",
   "Error Details": "Error Details",
-  "Close": "Close"
+  "Close": "Close",
+  "aiAssistant": "AI Assistant"
 };

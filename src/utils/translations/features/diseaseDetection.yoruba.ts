@@ -27,5 +27,6 @@ export const diseaseDetectionTranslations = {
   "Treatment Tips": "Imọran Itọju",
   "Reset": "Tun Bẹrẹ",
   "Save Results": "Fi Awọn Esi Pamọ",
-  "Login to Save": "Wole Lati Fi Pamọ"
+  "Login to Save": "Wole Lati Fi Pamọ",
+  "diseaseDetection": "Iwadi Arun"
 };
