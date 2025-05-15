@@ -1,7 +1,8 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { useToast } from "./use-toast";
 
 export interface DashboardData {
   totalScans: number;
@@ -18,15 +19,19 @@ export function useDashboardData(user: User | null) {
     aiChats: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const { toast } = useToast();
 
   // Function to fetch dashboard data that can be called multiple times
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     if (!user) {
       setIsLoading(false);
       return;
     }
     
     setIsLoading(true);
+    setError(null);
+    
     try {
       // Fetch total scans count
       const { count: scansCount, error: scansError } = await supabase
@@ -69,17 +74,20 @@ export function useDashboardData(user: User | null) {
       });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      // Set default values if there's an error
-      setDashboardData({
-        totalScans: 0,
-        diseasesDetected: 0,
-        weatherAlerts: 0,
-        aiChats: 0
-      });
+      setError(error instanceof Error ? error : new Error("Failed to fetch dashboard data"));
+      
+      // Only show toast on first error, not on repeated failures
+      if (!error) {
+        toast({
+          title: "Dashboard data error",
+          description: "Could not load your dashboard data. Please try again later.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, toast]);
 
   // Set up real-time subscriptions to tables
   useEffect(() => {
@@ -87,6 +95,8 @@ export function useDashboardData(user: User | null) {
       setIsLoading(false);
       return;
     }
+
+    let mounted = true;
 
     // Initial fetch
     fetchDashboardData();
@@ -97,8 +107,10 @@ export function useDashboardData(user: User | null) {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'scans', filter: `user_id=eq.${user.id}` }, 
         () => {
-          console.log('Scans table changed, refreshing dashboard data');
-          fetchDashboardData();
+          if (mounted) {
+            console.log('Scans table changed, refreshing dashboard data');
+            fetchDashboardData();
+          }
         })
       .subscribe();
 
@@ -107,8 +119,10 @@ export function useDashboardData(user: User | null) {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'weather_logs', filter: `user_id=eq.${user.id}` }, 
         () => {
-          console.log('Weather logs table changed, refreshing dashboard data');
-          fetchDashboardData();
+          if (mounted) {
+            console.log('Weather logs table changed, refreshing dashboard data');
+            fetchDashboardData();
+          }
         })
       .subscribe();
 
@@ -117,18 +131,21 @@ export function useDashboardData(user: User | null) {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'ai_chats', filter: `user_id=eq.${user.id}` }, 
         () => {
-          console.log('AI chats table changed, refreshing dashboard data');
-          fetchDashboardData();
+          if (mounted) {
+            console.log('AI chats table changed, refreshing dashboard data');
+            fetchDashboardData();
+          }
         })
       .subscribe();
 
     // Clean up subscriptions
     return () => {
+      mounted = false;
       supabase.removeChannel(scanChannel);
       supabase.removeChannel(weatherChannel);
       supabase.removeChannel(chatsChannel);
     };
-  }, [user]);
+  }, [user, fetchDashboardData]);
 
-  return { dashboardData, isLoading, refreshDashboard: fetchDashboardData };
+  return { dashboardData, isLoading, refreshDashboard: fetchDashboardData, error };
 }

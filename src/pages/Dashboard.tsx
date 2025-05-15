@@ -18,10 +18,12 @@ const Dashboard = () => {
     navigate(`/dashboard/${value}`);
   };
 
-  // Refresh dashboard data when tab changes
+  // Refresh dashboard data only when the user changes, not on every tab change
   useEffect(() => {
-    refreshDashboard();
-  }, [tab, refreshDashboard]);
+    if (user) {
+      refreshDashboard();
+    }
+  }, [user, refreshDashboard]);
 
   return (
     <Layout>
