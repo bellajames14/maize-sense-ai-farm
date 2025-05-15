@@ -25,30 +25,55 @@ serve(async (req) => {
     
     console.log(`Processing message in language: ${validatedLanguage}`);
 
-    // Generate AI response with specified language
-    const aiResponse = await generateAIResponse(message, previousMessages, validatedLanguage);
+    try {
+      // Generate AI response with specified language
+      const aiResponse = await generateAIResponse(message, previousMessages, validatedLanguage);
 
-    // Create Supabase client
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    // Store the chat message and response in the database if userId is provided
-    if (userId) {
-      try {
-        await supabaseClient.from('ai_chats').insert({
-          user_id: userId,
-          user_message: message,
-          ai_response: aiResponse,
-          language: validatedLanguage
-        });
-      } catch (dbError) {
-        console.error("Error storing chat in database:", dbError);
-        // Continue even if database storage fails
+      // Create Supabase client
+      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      
+      // Store the chat message and response in the database if userId is provided
+      if (userId) {
+        try {
+          await supabaseClient.from('ai_chats').insert({
+            user_id: userId,
+            user_message: message,
+            ai_response: aiResponse,
+            language: validatedLanguage
+          });
+        } catch (dbError) {
+          console.error("Error storing chat in database:", dbError);
+          // Continue even if database storage fails
+        }
+      }
+      
+      return new Response(JSON.stringify({ response: aiResponse }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (aiError) {
+      console.error("Gemini API error:", aiError);
+      
+      // Check for specific error types
+      const errorMessage = aiError.toString();
+      
+      if (errorMessage.includes("UNAVAILABLE") || errorMessage.includes("overloaded")) {
+        return new Response(
+          JSON.stringify({ 
+            error: "AI service is currently unavailable. Please try again later.",
+            errorDetails: errorMessage
+          }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({ 
+            error: "Error generating AI response",
+            errorDetails: errorMessage
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
-    
-    return new Response(JSON.stringify({ response: aiResponse }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (error) {
     console.error("Error processing AI chat:", error);
     return new Response(
@@ -56,7 +81,7 @@ serve(async (req) => {
         error: "Sorry, I could not process your message. Please try again.",
         errorDetails: error.toString() 
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

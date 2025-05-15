@@ -24,11 +24,13 @@ export function AIAssistant() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [isServiceDown, setIsServiceDown] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const { translate, language } = usePreferences();
   const isMobile = useIsMobile();
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const prevLanguageRef = useRef(language);
 
   // Scroll to bottom of chat when new messages are added
   useEffect(() => {
@@ -37,16 +39,16 @@ export function AIAssistant() {
     }
   }, [chatHistory]);
 
-  // Reset chat history when language changes
+  // Only reset chat history when language changes and there's existing chat history
   useEffect(() => {
-    // Only reset if there's existing chat history
-    if (chatHistory.length > 0) {
+    if (prevLanguageRef.current !== language && chatHistory.length > 0) {
       setChatHistory([]);
       toast({
         title: translate("Language Changed"),
         description: translate("Chat has been reset due to language change"),
       });
     }
+    prevLanguageRef.current = language;
   }, [language, toast, translate, chatHistory.length]);
 
   const sendMessage = async (event: React.FormEvent) => {
@@ -60,6 +62,7 @@ export function AIAssistant() {
     // Add user message to chat history
     setChatHistory((prev) => [...prev, { content: userMessage, isUser: true }]);
     setIsProcessing(true);
+    setIsServiceDown(false); // Reset service status on new message attempt
     
     try {
       console.log(`Sending message to AI in ${language} language: "${userMessage}"`);
@@ -87,7 +90,14 @@ export function AIAssistant() {
           // Check if the response data contains an error field
           if (response.data && response.data.error) {
             setErrorDetails(JSON.stringify(response.data, null, 2));
-            throw new Error(response.data.error);
+            
+            // Check specifically for service unavailable errors
+            if (response.data.errorDetails && response.data.errorDetails.includes("UNAVAILABLE")) {
+              setIsServiceDown(true);
+              throw new Error("AI service is currently unavailable");
+            } else {
+              throw new Error(response.data.error);
+            }
           }
           
           // Check if the response data is valid
@@ -108,15 +118,20 @@ export function AIAssistant() {
           
           setErrorDetails(JSON.stringify(error, null, 2));
           
+          // Different toast message based on error type
           toast({
             title: translate("Error"),
-            description: errorMessage,
+            description: isServiceDown ? 
+              translate("AI service is currently unavailable") : 
+              errorMessage,
             variant: "destructive",
           });
           
-          // Add error message to chat
+          // Add appropriate error message to chat
           setChatHistory((prev) => [...prev, { 
-            content: translate("Sorry, I couldn't process your request. Please try again later."), 
+            content: isServiceDown ? 
+              translate("Sorry, the AI service is currently unavailable. Please try again later.") : 
+              translate("Sorry, I couldn't process your request. Please try again later."), 
             isUser: false 
           }]);
         } finally {
@@ -131,6 +146,17 @@ export function AIAssistant() {
 
   const handleSuggestionClick = (suggestion: string) => {
     setMessage(suggestion);
+  };
+
+  // If the service is down, show a more prominent message
+  const renderChatContent = () => {
+    if (chatHistory.length === 0) {
+      return <WelcomeMessage onSuggestionClick={handleSuggestionClick} />;
+    }
+    
+    return chatHistory.map((msg, index) => (
+      <ChatMessage key={index} content={msg.content} isUser={msg.isUser} />
+    ));
   };
 
   return (
@@ -149,13 +175,7 @@ export function AIAssistant() {
             className="space-y-4 sm:space-y-6 mb-4 sm:mb-6 max-h-[calc(100vh-350px)] overflow-auto p-2 rounded-lg"
             style={{ height: isMobile ? '300px' : 'auto', minHeight: '250px' }}
           >
-            {chatHistory.length === 0 ? (
-              <WelcomeMessage onSuggestionClick={handleSuggestionClick} />
-            ) : (
-              chatHistory.map((msg, index) => (
-                <ChatMessage key={index} content={msg.content} isUser={msg.isUser} />
-              ))
-            )}
+            {renderChatContent()}
             {isProcessing && <LoadingMessage />}
           </div>
           <ChatInput 
@@ -171,7 +191,10 @@ export function AIAssistant() {
           />
         </CardContent>
         <CardFooter className="text-xs sm:text-sm text-muted-foreground bg-muted/30 border-t">
-          {translate("The AI assistant uses machine learning to provide farming advice")}
+          {isServiceDown ? 
+            <span className="text-amber-600">{translate("The AI service is temporarily unavailable")}</span> : 
+            translate("The AI assistant uses machine learning to provide farming advice")
+          }
         </CardFooter>
       </Card>
     </div>
