@@ -2,10 +2,11 @@
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, Upload, Save, Database, AlertTriangle } from "lucide-react";
+import { AlertCircle, Upload, Save, Database, AlertTriangle, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFarmerFriendlyName, formatConfidence } from "./diseaseUtils";
 import { usePreferences } from "@/hooks/usePreferences";
+import { Card, CardContent } from "@/components/ui/card";
 
 export interface DiseaseAnalysisResult {
   disease: string;
@@ -40,6 +41,9 @@ export const AnalysisResults = ({
     ? getFarmerFriendlyName(analysisResult.disease)
     : "";
 
+  // Determine if the plant is healthy
+  const isHealthy = analysisResult?.disease === "Healthy";
+
   return (
     <div className="space-y-4">
       {analysisError && !isAnalyzing ? (
@@ -65,56 +69,61 @@ export const AnalysisResults = ({
         </div>
       ) : analysisResult && (
         <>
-          <div className="space-y-2">
-            <h3 className="font-medium">{translate("Detected Disease")}</h3>
-            <Alert variant={analysisResult.disease === "Healthy" ? "default" : "destructive"}>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{farmerFriendlyName}</AlertTitle>
-              <AlertDescription className="mt-2">
-                {translate("Confidence")}: {formatConfidence(analysisResult.confidence)}
-                {analysisResult.affectedArea && ` | ${translate("Affected Area")}: ${analysisResult.affectedArea}`}
-              </AlertDescription>
-            </Alert>
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="font-medium">{translate("Recommendation")}</h3>
-            <div className="bg-muted rounded-lg p-3 text-sm">
-              {analysisResult.treatment}
+          <Card className="overflow-hidden">
+            <div className={`p-4 ${isHealthy ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'} flex items-center gap-3`}>
+              {isHealthy ? 
+                <Check className="h-5 w-5 text-green-600 dark:text-green-400" /> : 
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              }
+              <div>
+                <h3 className="font-semibold text-lg">{farmerFriendlyName}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {translate("Confidence")}: {formatConfidence(analysisResult.confidence)}
+                  {analysisResult.affectedArea && ` • ${translate("Affected Area")}: ${analysisResult.affectedArea}`}
+                </p>
+              </div>
             </div>
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="font-medium">{translate("Treatment Tips")}</h3>
-            <div className="bg-muted rounded-lg p-3 text-sm">
-              {analysisResult.prevention}
-            </div>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-2">
+                <h3 className="font-medium text-base">{translate("Recommendation")}</h3>
+                <div className="bg-muted rounded-lg p-3 text-sm">
+                  {analysisResult.treatment}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="font-medium text-base">{translate("Treatment Tips")}</h3>
+                <div className="bg-muted rounded-lg p-3 text-sm">
+                  {analysisResult.prevention}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-between mt-6">
+            <Button variant="outline" onClick={onReset}>
+              {translate("Reset")}
+            </Button>
+            <Button 
+              className="bg-green-700 hover:bg-green-800"
+              disabled={!user}
+              onClick={onSaveResults}
+            >
+              {user ? (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  {translate("Save Results")}
+                </>
+              ) : (
+                <>
+                  <Database className="mr-2 h-4 w-4" />
+                  {translate("Login to Save")}
+                </>
+              )}
+            </Button>
           </div>
         </>
       )}
-
-      <div className="flex justify-between mt-4">
-        <Button variant="outline" onClick={onReset} disabled={!analysisResult && !analysisError}>
-          {translate("Reset")}
-        </Button>
-        <Button 
-          className="bg-green-700 hover:bg-green-800"
-          disabled={!analysisResult || !user}
-          onClick={onSaveResults}
-        >
-          {user ? (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              {translate("Save Results")}
-            </>
-          ) : (
-            <>
-              <Database className="mr-2 h-4 w-4" />
-              {translate("Login to Save")}
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   );
 };

@@ -64,59 +64,67 @@ export function AIAssistant() {
     try {
       console.log(`Sending message to AI in ${language} language: "${userMessage}"`);
       
-      const response = await supabase.functions.invoke('chat-with-ai', {
-        body: { 
-          message: userMessage,
-          userId: user?.id || null,
-          previousMessages: chatHistory.slice(-5), // Send last 5 messages for context
-          language: language // Send the current language preference
+      // Add a timeout to ensure the UI updates before making the request
+      setTimeout(async () => {
+        try {
+          const response = await supabase.functions.invoke('chat-with-ai', {
+            body: { 
+              message: userMessage,
+              userId: user?.id || null,
+              previousMessages: chatHistory.slice(-5), // Send last 5 messages for context
+              language: language // Send the current language preference
+            }
+          });
+          
+          console.log("Raw response from chat-with-ai function:", response);
+          
+          // Check if response has any errors
+          if (response.error) {
+            console.error("Supabase function error:", response.error);
+            throw new Error(response.error.message || "Error processing request");
+          }
+          
+          // Check if the response data contains an error field
+          if (response.data && response.data.error) {
+            setErrorDetails(JSON.stringify(response.data, null, 2));
+            throw new Error(response.data.error);
+          }
+          
+          // Check if the response data is valid
+          if (!response.data || !response.data.response) {
+            console.error("Invalid response format:", response.data);
+            setErrorDetails(JSON.stringify(response.data, null, 2));
+            throw new Error("Invalid response from AI assistant");
+          }
+          
+          console.log("AI response received:", response.data.response.substring(0, 50) + "...");
+          
+          // Add AI response to chat history
+          setChatHistory((prev) => [...prev, { content: response.data.response, isUser: false }]);
+        } catch (error: any) {
+          console.error("Error sending message:", error);
+          
+          let errorMessage = typeof error === "string" ? error : (error.message || translate("Failed to process your request"));
+          
+          setErrorDetails(JSON.stringify(error, null, 2));
+          
+          toast({
+            title: translate("Error"),
+            description: errorMessage,
+            variant: "destructive",
+          });
+          
+          // Add error message to chat
+          setChatHistory((prev) => [...prev, { 
+            content: translate("Sorry, I couldn't process your request. Please try again later."), 
+            isUser: false 
+          }]);
+        } finally {
+          setIsProcessing(false);
         }
-      });
-      
-      console.log("Raw response from chat-with-ai function:", response);
-      
-      // Check if response has any errors
-      if (response.error) {
-        console.error("Supabase function error:", response.error);
-        throw new Error(response.error.message || "Error processing request");
-      }
-      
-      // Check if the response data contains an error field
-      if (response.data && response.data.error) {
-        setErrorDetails(JSON.stringify(response.data, null, 2));
-        throw new Error(response.data.error);
-      }
-      
-      // Check if the response data is valid
-      if (!response.data || !response.data.response) {
-        console.error("Invalid response format:", response.data);
-        setErrorDetails(JSON.stringify(response.data, null, 2));
-        throw new Error("Invalid response from AI assistant");
-      }
-      
-      console.log("AI response received:", response.data.response.substring(0, 50) + "...");
-      
-      // Add AI response to chat history
-      setChatHistory((prev) => [...prev, { content: response.data.response, isUser: false }]);
+      }, 100);
     } catch (error: any) {
-      console.error("Error sending message:", error);
-      
-      let errorMessage = typeof error === "string" ? error : (error.message || translate("Failed to process your request"));
-      
-      setErrorDetails(JSON.stringify(error, null, 2));
-      
-      toast({
-        title: translate("Error"),
-        description: errorMessage,
-        variant: "destructive",
-      });
-      
-      // Add error message to chat
-      setChatHistory((prev) => [...prev, { 
-        content: translate("Sorry, I couldn't process your request. Please try again later."), 
-        isUser: false 
-      }]);
-    } finally {
+      console.error("Initial error:", error);
       setIsProcessing(false);
     }
   };
@@ -139,7 +147,7 @@ export function AIAssistant() {
           <div 
             ref={chatContainerRef}
             className="space-y-4 sm:space-y-6 mb-4 sm:mb-6 max-h-[calc(100vh-350px)] overflow-auto p-2 rounded-lg"
-            style={{ height: isMobile ? '300px' : 'auto' }}
+            style={{ height: isMobile ? '300px' : 'auto', minHeight: '250px' }}
           >
             {chatHistory.length === 0 ? (
               <WelcomeMessage onSuggestionClick={handleSuggestionClick} />

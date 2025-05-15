@@ -5,17 +5,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnalyticsCards } from "@/components/dashboard/AnalyticsCards";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useEffect } from "react";
 
 const Dashboard = () => {
   const { tab = "disease" } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { dashboardData, isLoading } = useDashboardData(user);
+  const { dashboardData, isLoading, refreshDashboard } = useDashboardData(user);
 
   // Handle tab changes
   const handleTabChange = (value: string) => {
     navigate(`/dashboard/${value}`);
   };
+
+  // Refresh dashboard data when tab changes
+  useEffect(() => {
+    refreshDashboard();
+  }, [tab, refreshDashboard]);
 
   return (
     <Layout>
