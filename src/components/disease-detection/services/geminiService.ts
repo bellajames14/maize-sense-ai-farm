@@ -4,6 +4,81 @@
 // Gemini API key
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+// Known maize diseases for validation
+const KNOWN_MAIZE_DISEASES = [
+  "Northern Corn Leaf Blight",
+  "Common Rust", 
+  "Gray Leaf Spot",
+  "Southern Corn Leaf Blight",
+  "Corn Smut",
+  "Corn Ear Rot",
+  "Diplodia Leaf Streak",
+  "Corn Eyespot",
+  "Anthracnose Leaf Blight",
+  "Physoderma Brown Spot",
+  "Bacterial Leaf Streak",
+  "Goss's Bacterial Wilt",
+  "Maize Lethal Necrosis",
+  "Fall Armyworm",
+  "Stem Borer",
+  "Blight",
+  "Healthy"
+];
+
+// Validate disease name against known diseases
+const validateDiseaseName = (diseaseName: string): string => {
+  const normalizedInput = diseaseName.toLowerCase().trim();
+  
+  // Check for exact matches first
+  const exactMatch = KNOWN_MAIZE_DISEASES.find(disease => 
+    disease.toLowerCase() === normalizedInput
+  );
+  if (exactMatch) return exactMatch;
+  
+  // Check for partial matches
+  const partialMatch = KNOWN_MAIZE_DISEASES.find(disease => 
+    disease.toLowerCase().includes(normalizedInput) || 
+    normalizedInput.includes(disease.toLowerCase())
+  );
+  if (partialMatch) return partialMatch;
+  
+  // Special case mappings for common misidentifications
+  const mappings: Record<string, string> = {
+    "cob rot": "Corn Ear Rot",
+    "ear rot": "Corn Ear Rot",
+    "grey leaf spot": "Gray Leaf Spot",
+    "gray spot": "Gray Leaf Spot",
+    "corn gray spot": "Gray Leaf Spot",
+    "leaf blight": "Northern Corn Leaf Blight",
+    "rust": "Common Rust",
+    "army worm": "Fall Armyworm",
+    "armyworm": "Fall Armyworm"
+  };
+  
+  const mappedDisease = mappings[normalizedInput];
+  if (mappedDisease) return mappedDisease;
+  
+  // If no match found, return the original name
+  return diseaseName;
+};
+
+// Validate and normalize confidence value
+const validateConfidence = (confidence: any): number => {
+  if (typeof confidence === 'number' && confidence >= 0 && confidence <= 100) {
+    return Math.round(confidence);
+  }
+  
+  if (typeof confidence === 'string') {
+    const numericValue = parseFloat(confidence.replace('%', ''));
+    if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
+      return Math.round(numericValue);
+    }
+  }
+  
+  // Default confidence for invalid values
+  return 85;
+};
+
 // Process the Gemini API response to extract disease data
 export const processGeminiResponse = (analysisText: string): {
   disease: string;
@@ -39,26 +114,27 @@ export const processGeminiResponse = (analysisText: string): {
       diseaseData = extractDiseaseDataFromText(analysisText);
     }
     
+    // Clean and validate the extracted data
+    const rawDisease = diseaseData.disease || "Unknown";
+    const validatedDisease = validateDiseaseName(rawDisease);
+    const validatedConfidence = validateConfidence(diseaseData.confidence);
+    
     // Clean text fields
-    Object.keys(diseaseData).forEach(key => {
-      if (typeof diseaseData[key] === 'string') {
-        diseaseData[key] = (diseaseData[key] as string).replace(/\*/g, '');
-      }
-    });
+    const cleanText = (text: string) => text.replace(/\*/g, '').trim();
     
     return {
-      disease: diseaseData.disease || "Unknown",
-      confidence: typeof diseaseData.confidence === 'number' ? diseaseData.confidence : 85,
-      treatment: diseaseData.treatment || "Consult with a local agriculture helper.",
-      prevention: diseaseData.prevention || "Keep plants spaced well and water at the base, not on leaves."
+      disease: validatedDisease,
+      confidence: validatedConfidence,
+      treatment: cleanText(diseaseData.treatment || "Consult with a local agriculture expert for proper treatment guidance."),
+      prevention: cleanText(diseaseData.prevention || "Maintain good field hygiene and proper plant spacing to prevent disease spread.")
     };
   } catch (error) {
     console.error("Error processing Gemini response:", error);
     return {
       disease: "Analysis Error",
       confidence: 50,
-      treatment: "We couldn't analyze your image. Please try again with a clearer photo.",
-      prevention: "Take photos in good light and make sure the plant is clearly visible."
+      treatment: "We couldn't analyze your image properly. Please try again with a clearer photo.",
+      prevention: "Take photos in good light showing clear symptoms on the plant."
     };
   }
 };
@@ -80,8 +156,8 @@ export const extractDiseaseDataFromText = (text: string): Partial<{
   }> = {
     disease: "Unknown",
     confidence: 85,
-    treatment: "Consult with a local agriculture helper.",
-    prevention: "Keep plants spaced well and water at the base, not on leaves."
+    treatment: "Consult with a local agriculture expert for proper treatment guidance.",
+    prevention: "Maintain good field hygiene and proper plant spacing to prevent disease spread."
   };
   
   // Try to extract disease name
@@ -94,8 +170,8 @@ export const extractDiseaseDataFromText = (text: string): Partial<{
   if (text.toLowerCase().includes("healthy")) {
     result.disease = "Healthy";
     result.confidence = 95;
-    result.treatment = "No treatment needed. Your plant looks good.";
-    result.prevention = "Keep taking good care of your plants as you have been.";
+    result.treatment = "No treatment needed. Your plant looks healthy.";
+    result.prevention = "Continue with good farming practices to maintain plant health.";
   }
   
   // Try to extract confidence
@@ -116,32 +192,36 @@ export const extractDiseaseDataFromText = (text: string): Partial<{
   return result;
 };
 
-// Ask Gemini for recommendations
+// Ask Gemini for recommendations with improved validation
 export const getGeminiRecommendations = async (diseaseName: string, confidence: number): Promise<{
   treatment: string;
   prevention: string;
 }> => {
   try {
-    // Prepare the prompt for Gemini
+    // Prepare the prompt for Gemini with validation instructions
     const prompt = `
-      I'm a farmer who has detected ${diseaseName} in my maize crop with ${confidence}% confidence. 
+      You are a maize disease expert. A farmer has detected ${diseaseName} in their maize crop with ${confidence}% confidence.
+      
+      IMPORTANT VALIDATION RULES:
+      1. Only provide advice for confirmed maize diseases
+      2. Use simple, clear language that farmers can understand
+      3. Focus on practical, affordable solutions
+      4. Suggest locally available treatments when possible
       
       Please provide:
-      1. A very simple recommendation for what I should do (in very basic English any farmer can understand)
-      2. Simple treatment tips that are practical and actionable for a rural farmer
-
-      Keep your language extremely simple, practical and actionable. Write for someone who may have limited education.
-      Focus on affordable solutions and locally available materials.
-      Make sure treatments are safe and environmentally friendly.
+      1. Immediate treatment recommendations (what to do now)
+      2. Prevention tips for future crops
       
       Format your response as:
       
-      Recommendation: [simple recommendation]
+      Treatment: [Provide 2-3 specific, actionable steps using simple language. Include organic and chemical options if appropriate.]
       
-      Treatment Tips: [simple actionable tips]
+      Prevention: [Provide 2-3 prevention strategies focusing on good farming practices.]
+      
+      Keep language simple and practical for rural farmers.
     `;
     
-    // Call Gemini Vision API directly
+    // Call Gemini API with validation
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -169,10 +249,7 @@ export const getGeminiRecommendations = async (diseaseName: string, confidence: 
     
     if (!response.ok) {
       console.error("Gemini API error:", await response.text());
-      return {
-        treatment: "Please consult with your local agricultural expert for advice on this disease.",
-        prevention: "Keep your fields clean and plants well-spaced to reduce disease spread."
-      };
+      return getDefaultRecommendations(diseaseName);
     }
     
     const responseData = await response.json();
@@ -184,108 +261,147 @@ export const getGeminiRecommendations = async (diseaseName: string, confidence: 
     
     const recommendationsText = responseData.candidates[0].content.parts[0].text;
     
-    // Extract recommendation and treatment tips
-    const recommendationMatch = recommendationsText.match(/Recommendation:?\s*([^]*?)(?=Treatment|$)/i);
-    const treatmentMatch = recommendationsText.match(/Treatment Tips:?\s*([^]*?)(?=$)/i);
+    // Extract treatment and prevention with validation
+    const treatmentMatch = recommendationsText.match(/Treatment:?\s*([^]*?)(?=Prevention|$)/i);
+    const preventionMatch = recommendationsText.match(/Prevention:?\s*([^]*?)(?=$)/i);
     
     return {
-      treatment: recommendationMatch ? recommendationMatch[1].trim() : 
-                "Please consult with your local agricultural expert for advice on this disease.",
-      prevention: treatmentMatch ? treatmentMatch[1].trim() : 
-                "Keep your fields clean and plants well-spaced to reduce disease spread."
+      treatment: treatmentMatch ? treatmentMatch[1].trim() : getDefaultRecommendations(diseaseName).treatment,
+      prevention: preventionMatch ? preventionMatch[1].trim() : getDefaultRecommendations(diseaseName).prevention
     };
   } catch (error) {
     console.error("Error getting Gemini recommendations:", error);
-    return {
-      treatment: "Please consult with your local agricultural expert for advice on this disease.",
-      prevention: "Keep your fields clean and plants well-spaced to reduce disease spread."
-    };
+    return getDefaultRecommendations(diseaseName);
   }
 };
 
-// Analyze image with Gemini API for unknown diseases or low confidence
+// Get default recommendations for known diseases
+const getDefaultRecommendations = (diseaseName: string) => {
+  const recommendations: Record<string, {treatment: string, prevention: string}> = {
+    "Gray Leaf Spot": {
+      treatment: "Remove infected leaves immediately. Apply copper-based fungicide every 7-14 days. Improve air circulation between plants.",
+      prevention: "Plant resistant varieties. Rotate crops every 2-3 years. Avoid overhead watering. Maintain proper plant spacing."
+    },
+    "Common Rust": {
+      treatment: "Apply fungicide containing propiconazole or tebuconazole. Remove infected leaves. Ensure good field drainage.",
+      prevention: "Use resistant seed varieties. Avoid late planting. Maintain balanced fertilization with adequate potassium."
+    },
+    "Northern Corn Leaf Blight": {
+      treatment: "Apply fungicide at first sign of disease. Remove crop residue after harvest. Improve field drainage.",
+      prevention: "Use resistant hybrids. Practice crop rotation. Manage irrigation to avoid leaf wetness."
+    },
+    "Healthy": {
+      treatment: "Continue current good practices. Monitor regularly for any signs of disease or pests.",
+      prevention: "Maintain proper fertilization. Keep fields clean. Use quality seeds. Practice crop rotation."
+    }
+  };
+  
+  return recommendations[diseaseName] || {
+    treatment: "Consult with your local agricultural extension officer for specific treatment recommendations for this disease.",
+    prevention: "Practice good field hygiene, crop rotation, and use disease-resistant varieties when available."
+  };
+};
+
+// Analyze image with Gemini API with improved validation
 export const analyzeWithGemini = async (base64Image: string, detectedDisease?: string): Promise<{
   disease: string;
   confidence: number;
   treatment: string;
   prevention: string;
 }> => {
-  // Prepare the prompt for Gemini
+  // Prepare the prompt for Gemini with strict validation rules
   let prompt = `
-    Analyze this maize/corn plant image for diseases. You are a maize farming expert helping farmers identify crop diseases.
+    You are an expert agricultural specialist analyzing a maize/corn plant image for diseases.
     
-    IMPORTANT:
-    1. Focus ONLY on maize/corn diseases
-    2. If the maize appears healthy, confidently state it's healthy
-    3. Use very simple language suitable for farmers with limited technical knowledge
-    4. Be specific about symptoms - describe what you see
-    5. Provide practical treatment options using locally available solutions
-    6. Include prevention tips that are realistic for small-scale farmers
+    CRITICAL VALIDATION REQUIREMENTS:
+    1. ONLY identify diseases from this list: ${KNOWN_MAIZE_DISEASES.join(', ')}
+    2. If plant appears healthy, respond with "Healthy"
+    3. Confidence must be a number between 50-100 (never use "infinity" or invalid values)
+    4. Use simple language for farmers
+    5. Provide specific, actionable advice
+    
+    ANALYSIS REQUIREMENTS:
+    - Examine leaf spots, discoloration, lesions, and growth patterns
+    - Look for characteristic symptoms of common maize diseases
+    - Consider environmental factors that might affect diagnosis
   `;
   
-  if (detectedDisease) {
-    prompt += `\n\nNote: Our system detected "${detectedDisease}" with low confidence. Please confirm or suggest a more accurate diagnosis.`;
-  } else {
-    prompt += `\n\nNote: Our system couldn't identify the disease with high confidence. Please provide your expert analysis.`;
+  if (detectedDisease && detectedDisease !== "Unknown") {
+    prompt += `\n\nNote: Initial detection suggested "${detectedDisease}". Please verify or correct this diagnosis based on visual evidence.`;
   }
   
   prompt += `
-    Please format your response as plain JSON with these fields:
+    Respond in this EXACT JSON format:
     {
-      "disease": "Simple name of the disease or 'Healthy' if no disease found",
+      "disease": "exact disease name from the approved list above or 'Healthy'",
       "confidence": number between 50-100,
-      "treatment": "Simple step-by-step treatment instructions that any farmer can understand",
-      "prevention": "Basic prevention tips for future crops in simple language"
+      "treatment": "2-3 specific treatment steps in simple language",
+      "prevention": "2-3 prevention tips for future crops"
     }
     
-    Keep all explanations brief and practical, focusing on actionable advice for farmers with limited resources.
+    IMPORTANT: Ensure confidence is a valid number, not "infinity" or any text.
   `;
   
-  // Call Gemini Vision API
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: "image/jpeg",
-                  data: base64Image
+  try {
+    // Call Gemini Vision API with validation
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: "image/jpeg",
+                    data: base64Image
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          ],
+          generation_config: {
+            temperature: 0.1,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 1024
           }
-        ],
-        generation_config: {
-          temperature: 0.1,
-          topK: 32,
-          topP: 1,
-          maxOutputTokens: 2048
-        }
-      })
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Analysis failed: ${response.statusText}`);
     }
-  );
-  
-  if (!response.ok) {
-    throw new Error(`Analysis failed: ${response.statusText || "Error calling Gemini API"}`);
+    
+    const responseData = await response.json();
+    
+    // Extract the text from the response
+    if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
+      throw new Error("Invalid response format from Gemini Vision API");
+    }
+    
+    const analysisText = responseData.candidates[0].content.parts[0].text;
+    console.log("Raw Gemini response:", analysisText);
+    
+    // Process the response with validation
+    const result = processGeminiResponse(analysisText);
+    
+    console.log("Validated analysis result:", result);
+    return result;
+    
+  } catch (error) {
+    console.error("Error analyzing with Gemini:", error);
+    return {
+      disease: "Analysis Error",
+      confidence: 50,
+      treatment: "Unable to analyze image. Please ensure good lighting and clear view of plant symptoms.",
+      prevention: "Take photos during daylight with symptoms clearly visible for better analysis."
+    };
   }
-  
-  const responseData = await response.json();
-  
-  // Extract the text from the response
-  if (!responseData.candidates || !responseData.candidates[0]?.content?.parts[0]?.text) {
-    throw new Error("Unexpected response format from Gemini Vision API");
-  }
-  
-  const analysisText = responseData.candidates[0].content.parts[0].text;
-  
-  // Process the response
-  return processGeminiResponse(analysisText);
 };

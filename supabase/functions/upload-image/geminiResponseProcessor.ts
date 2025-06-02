@@ -9,8 +9,96 @@ export interface DiseaseAnalysisResult {
   prevention: string;
 }
 
+// Known maize diseases for validation
+const KNOWN_MAIZE_DISEASES = [
+  "Northern Corn Leaf Blight",
+  "Common Rust", 
+  "Gray Leaf Spot",
+  "Southern Corn Leaf Blight",
+  "Corn Smut",
+  "Corn Ear Rot",
+  "Diplodia Leaf Streak",
+  "Corn Eyespot",
+  "Anthracnose Leaf Blight",
+  "Physoderma Brown Spot",
+  "Bacterial Leaf Streak",
+  "Goss's Bacterial Wilt",
+  "Maize Lethal Necrosis",
+  "Fall Armyworm",
+  "Stem Borer",
+  "Blight",
+  "Healthy"
+];
+
+// Validate disease name against known diseases
+function validateDiseaseName(diseaseName: string): string {
+  const normalizedInput = diseaseName.toLowerCase().trim();
+  
+  // Check for exact matches first
+  const exactMatch = KNOWN_MAIZE_DISEASES.find(disease => 
+    disease.toLowerCase() === normalizedInput
+  );
+  if (exactMatch) return exactMatch;
+  
+  // Check for partial matches
+  const partialMatch = KNOWN_MAIZE_DISEASES.find(disease => 
+    disease.toLowerCase().includes(normalizedInput) || 
+    normalizedInput.includes(disease.toLowerCase())
+  );
+  if (partialMatch) return partialMatch;
+  
+  // Special case mappings for common misidentifications
+  const mappings: Record<string, string> = {
+    "cob rot": "Corn Ear Rot",
+    "ear rot": "Corn Ear Rot", 
+    "grey leaf spot": "Gray Leaf Spot",
+    "gray spot": "Gray Leaf Spot",
+    "corn gray spot": "Gray Leaf Spot",
+    "leaf blight": "Northern Corn Leaf Blight",
+    "rust": "Common Rust",
+    "army worm": "Fall Armyworm",
+    "armyworm": "Fall Armyworm"
+  };
+  
+  const mappedDisease = mappings[normalizedInput];
+  if (mappedDisease) return mappedDisease;
+  
+  // If no valid match found, return Unknown
+  return "Unknown";
+}
+
+// Validate and normalize confidence value
+function validateConfidence(confidence: any): number {
+  // Handle various input types
+  if (typeof confidence === 'number') {
+    if (confidence >= 0 && confidence <= 100) {
+      return Math.round(confidence);
+    }
+    // Handle confidence values greater than 100 (assume they're percentages)
+    if (confidence > 100 && confidence <= 10000) {
+      return Math.round(confidence / 100);
+    }
+  }
+  
+  if (typeof confidence === 'string') {
+    // Handle string values like "85%", "infinity", etc.
+    const cleanValue = confidence.toLowerCase().replace(/[^\d.]/g, '');
+    const numericValue = parseFloat(cleanValue);
+    
+    if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
+      return Math.round(numericValue);
+    }
+  }
+  
+  // Default confidence for invalid values (including "infinity")
+  console.log("Invalid confidence value received:", confidence, "- using default 85");
+  return 85;
+}
+
 // Process the Gemini API response text to extract disease data
 export async function processGeminiResponse(analysisText: string): Promise<DiseaseAnalysisResult> {
+  console.log("Processing Gemini response with validation");
+  
   // Extract the JSON from the response text
   let jsonMatch = analysisText.match(/```json\s*([\s\S]*?)\s*```/) || 
                   analysisText.match(/{[\s\S]*}/);
@@ -22,7 +110,7 @@ export async function processGeminiResponse(analysisText: string): Promise<Disea
     try {
       const jsonText = jsonMatch[0].replace(/```json|```/g, '').trim();
       diseaseData = JSON.parse(jsonText);
-      console.log("Successfully parsed disease data from JSON");
+      console.log("Successfully parsed disease data from JSON:", diseaseData);
     } catch (e) {
       console.error("Failed to parse JSON from Gemini:", e);
       // Fall back to extraction from text
@@ -35,27 +123,34 @@ export async function processGeminiResponse(analysisText: string): Promise<Disea
     diseaseData = extractDiseaseDataFromText(analysisText);
   }
 
-  // Clean any asterisks or special formatting from the text fields
-  if (diseaseData.treatment) {
-    diseaseData.treatment = textUtils.cleanTextForFarmers(diseaseData.treatment);
-  }
+  // Validate and clean the data
+  const validatedDisease = validateDiseaseName(diseaseData.disease || "Unknown");
+  const validatedConfidence = validateConfidence(diseaseData.confidence);
   
-  if (diseaseData.prevention) {
-    diseaseData.prevention = textUtils.cleanTextForFarmers(diseaseData.prevention);
-  }
+  // Clean text fields
+  const cleanTreatment = diseaseData.treatment ? 
+    textUtils.cleanTextForFarmers(diseaseData.treatment) : 
+    "Consult with a local agriculture expert for treatment advice.";
+    
+  const cleanPrevention = diseaseData.prevention ? 
+    textUtils.cleanTextForFarmers(diseaseData.prevention) : 
+    "Practice good field hygiene and proper plant spacing.";
   
-  if (diseaseData.disease) {
-    diseaseData.disease = textUtils.cleanTextForFarmers(diseaseData.disease);
+  // Validate affected area
+  let affectedArea = diseaseData.affectedArea || "25%";
+  if (affectedArea === "infinity" || affectedArea === "unknown") {
+    affectedArea = validatedDisease === "Healthy" ? "0%" : "25%";
   }
   
   const result: DiseaseAnalysisResult = {
-    disease: diseaseData.disease || "Unknown",
-    confidence: parseFloat(diseaseData.confidence?.toString() || "") || 85,
-    affectedArea: diseaseData.affectedArea || "25%",
-    treatment: diseaseData.treatment || "Consult with a local agriculture helper.",
-    prevention: diseaseData.prevention || "Keep plants spaced well and water at the base, not on leaves."
+    disease: validatedDisease,
+    confidence: validatedConfidence,
+    affectedArea: affectedArea,
+    treatment: cleanTreatment,
+    prevention: cleanPrevention
   };
   
+  console.log("Final validated result:", result);
   return result;
 }
 
@@ -67,8 +162,8 @@ function extractDiseaseDataFromText(text: string): Partial<DiseaseAnalysisResult
     disease: "Unknown",
     confidence: 85,
     affectedArea: "25%",
-    treatment: "Consult with a local agriculture helper.",
-    prevention: "Keep plants spaced well and water at the base, not on leaves."
+    treatment: "Consult with a local agriculture expert for treatment advice.",
+    prevention: "Practice good field hygiene and proper plant spacing."
   };
   
   // Try to extract disease name
@@ -82,15 +177,18 @@ function extractDiseaseDataFromText(text: string): Partial<DiseaseAnalysisResult
     result.disease = "Healthy";
     result.confidence = 95;
     result.affectedArea = "0%";
-    result.treatment = "No treatment needed. Your plant looks good.";
-    result.prevention = "Keep taking good care of your plants as you have been.";
+    result.treatment = "No treatment needed. Your plant looks healthy.";
+    result.prevention = "Continue with good farming practices to maintain plant health.";
   }
   
-  // Try to extract confidence
+  // Try to extract confidence with validation
   const confidenceMatch = text.match(/confidence:?\s*(\d+)/i) ||
                          text.match(/(\d+)%\s*confidence/i) ||
                          text.match(/(\d+)%\s*sure/i);
-  if (confidenceMatch) result.confidence = parseInt(confidenceMatch[1]);
+  if (confidenceMatch) {
+    const confValue = parseInt(confidenceMatch[1]);
+    result.confidence = validateConfidence(confValue);
+  }
   
   // Try to extract affected area
   const areaMatch = text.match(/affected area:?\s*(\d+%)/i) ||

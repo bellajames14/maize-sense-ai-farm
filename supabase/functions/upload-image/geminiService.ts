@@ -1,43 +1,112 @@
-// Service for interacting with the Gemini Vision API
+
+// Service for interacting with the Gemini Vision API with enhanced validation
+
+// Known maize diseases for validation
+const KNOWN_MAIZE_DISEASES = [
+  "Northern Corn Leaf Blight",
+  "Common Rust", 
+  "Gray Leaf Spot",
+  "Southern Corn Leaf Blight",
+  "Corn Smut",
+  "Corn Ear Rot",
+  "Diplodia Leaf Streak",
+  "Corn Eyespot",
+  "Anthracnose Leaf Blight",
+  "Physoderma Brown Spot",
+  "Bacterial Leaf Streak",
+  "Goss's Bacterial Wilt",
+  "Maize Lethal Necrosis",
+  "Fall Armyworm",
+  "Stem Borer",
+  "Blight",
+  "Healthy"
+];
+
+// Validate disease name against known diseases
+function validateDiseaseName(diseaseName: string): string {
+  const normalizedInput = diseaseName.toLowerCase().trim();
+  
+  // Check for exact matches first
+  const exactMatch = KNOWN_MAIZE_DISEASES.find(disease => 
+    disease.toLowerCase() === normalizedInput
+  );
+  if (exactMatch) return exactMatch;
+  
+  // Check for partial matches
+  const partialMatch = KNOWN_MAIZE_DISEASES.find(disease => 
+    disease.toLowerCase().includes(normalizedInput) || 
+    normalizedInput.includes(disease.toLowerCase())
+  );
+  if (partialMatch) return partialMatch;
+  
+  // Special case mappings for common misidentifications
+  const mappings: Record<string, string> = {
+    "cob rot": "Corn Ear Rot",
+    "ear rot": "Corn Ear Rot",
+    "grey leaf spot": "Gray Leaf Spot",
+    "gray spot": "Gray Leaf Spot",
+    "corn gray spot": "Gray Leaf Spot",
+    "leaf blight": "Northern Corn Leaf Blight",
+    "rust": "Common Rust",
+    "army worm": "Fall Armyworm",
+    "armyworm": "Fall Armyworm"
+  };
+  
+  const mappedDisease = mappings[normalizedInput];
+  if (mappedDisease) return mappedDisease;
+  
+  // If no match found, return the original name
+  return diseaseName;
+}
+
+// Validate and normalize confidence value
+function validateConfidence(confidence: any): number {
+  if (typeof confidence === 'number' && confidence >= 0 && confidence <= 100) {
+    return Math.round(confidence);
+  }
+  
+  if (typeof confidence === 'string') {
+    const numericValue = parseFloat(confidence.replace('%', ''));
+    if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
+      return Math.round(numericValue);
+    }
+  }
+  
+  // Default confidence for invalid values
+  return 85;
+}
+
 export async function analyzeImageWithGemini(base64Image: string, apiKey: string): Promise<string> {
-  // Prepare the prompt for Gemini with special focus on maize/corn diseases
+  // Prepare enhanced prompt with validation requirements
   const prompt = `
-    Analyze this maize/corn plant image for diseases. You are a maize farming expert helping farmers identify crop diseases.
+    You are an expert agricultural specialist analyzing a maize/corn plant image for diseases.
     
-    IMPORTANT:
-    1. Focus ONLY on maize/corn diseases such as:
-       - Northern Corn Leaf Blight
-       - Common Rust
-       - Gray Leaf Spot
-       - Southern Corn Leaf Blight
-       - Corn Smut
-       - Corn Ear Rot
-       - Diplodia Leaf Streak
-       - Corn Eyespot
-       - Anthracnose Leaf Blight
-       - Physoderma Brown Spot
-       - Bacterial Leaf Streak
-       - Goss's Bacterial Wilt
-       - Maize Lethal Necrosis
-    2. If the maize appears healthy, confidently state it's healthy
-    3. Use very simple language suitable for farmers with limited technical knowledge
-    4. Be specific about visual symptoms - describe what you see
-    5. Provide practical treatment options using locally available solutions when possible
-    6. Include prevention tips that are realistic for small-scale farmers
+    CRITICAL VALIDATION REQUIREMENTS:
+    1. ONLY identify diseases from this approved list: ${KNOWN_MAIZE_DISEASES.join(', ')}
+    2. If plant appears healthy, respond with "Healthy"  
+    3. Confidence MUST be a number between 50-100 (NEVER use "infinity", "unknown", or invalid values)
+    4. Use simple language suitable for farmers
+    5. Provide specific, actionable treatment advice
     
-    Please format your response as plain JSON with these fields:
+    ANALYSIS GUIDELINES:
+    - Examine leaf spots, discoloration, lesions, and growth patterns carefully
+    - Look for characteristic symptoms of common maize diseases
+    - Consider plant health indicators and environmental factors
+    - If symptoms are unclear, choose the most likely disease with appropriate confidence
+    
+    Respond in this EXACT JSON format:
     {
-      "disease": "Simple name of the disease or 'Healthy' if no disease found",
-      "confidence": number between 50-100,
-      "affectedArea": "Which part of plant is affected and approximate percentage",
-      "treatment": "Simple step-by-step treatment instructions",
-      "prevention": "Basic prevention tips for future crops"
+      "disease": "exact disease name from approved list or 'Healthy'",
+      "confidence": valid_number_between_50_and_100,
+      "affectedArea": "percentage like '25%' or '0%' for healthy",
+      "treatment": "2-3 specific treatment steps in simple farmer language",
+      "prevention": "2-3 prevention tips for future crops in simple language"
     }
     
-    Keep all explanations brief and practical, focusing on actionable advice for farmers.
+    CRITICAL: Ensure all values are valid - confidence must be a number, not text or infinity.
   `;
   
-  console.log("Sending request to Gemini API for maize disease analysis");
+  console.log("Sending validated request to Gemini API for maize disease analysis");
   
   try {
     // Call Gemini Vision API with timeout handling
@@ -66,10 +135,10 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
             }
           ],
           generation_config: {
-            temperature: 0.1, // Lower temperature for more deterministic/factual responses
+            temperature: 0.1, // Lower temperature for more deterministic responses
             topK: 32,
             topP: 1,
-            maxOutputTokens: 2048
+            maxOutputTokens: 1024
           }
         }),
         signal: controller.signal
@@ -96,7 +165,33 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
     }
     
     const analysisText = responseData.candidates[0].content.parts[0].text;
-    console.log("Analysis text extracted:", analysisText.substring(0, 100) + "...");
+    console.log("Raw analysis text:", analysisText.substring(0, 200) + "...");
+    
+    // Validate the response before returning
+    try {
+      // Try to parse the JSON to validate structure
+      const jsonMatch = analysisText.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        analysisText.match(/{[\s\S]*}/);
+      
+      if (jsonMatch) {
+        const jsonText = jsonMatch[0].replace(/```json|```/g, '').trim();
+        const parsedData = JSON.parse(jsonText);
+        
+        // Validate and correct the parsed data
+        parsedData.disease = validateDiseaseName(parsedData.disease || "Unknown");
+        parsedData.confidence = validateConfidence(parsedData.confidence);
+        
+        // Ensure affectedArea is valid
+        if (!parsedData.affectedArea || parsedData.affectedArea === "infinity") {
+          parsedData.affectedArea = parsedData.disease === "Healthy" ? "0%" : "25%";
+        }
+        
+        console.log("Validated analysis data:", parsedData);
+        return JSON.stringify(parsedData);
+      }
+    } catch (parseError) {
+      console.error("Error parsing/validating JSON:", parseError);
+    }
     
     return analysisText;
   } catch (error) {
@@ -107,6 +202,3 @@ export async function analyzeImageWithGemini(base64Image: string, apiKey: string
     throw new Error(`Gemini API error: ${error.message || "Unknown error"}`);
   }
 }
-
-
-
