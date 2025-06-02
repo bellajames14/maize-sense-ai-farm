@@ -119,14 +119,40 @@ export const processGeminiResponse = (analysisText: string): {
     const validatedDisease = validateDiseaseName(rawDisease);
     const validatedConfidence = validateConfidence(diseaseData.confidence);
     
-    // Clean text fields
-    const cleanText = (text: string) => text.replace(/\*/g, '').trim();
+    // Format text fields properly
+    const formatTreatment = (text: string) => {
+      if (!text) return "Consult with a local agriculture expert for proper treatment guidance.";
+      
+      // Clean and format as numbered steps
+      const cleaned = text.replace(/\*/g, '').trim();
+      const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      
+      if (sentences.length <= 1) return cleaned;
+      
+      return sentences.map((sentence, index) => 
+        `${index + 1}. ${sentence.trim()}.`
+      ).join('\n');
+    };
+    
+    const formatPrevention = (text: string) => {
+      if (!text) return "Maintain good field hygiene and proper plant spacing to prevent disease spread.";
+      
+      // Clean and format as bullet points
+      const cleaned = text.replace(/\*/g, '').trim();
+      const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      
+      if (sentences.length <= 1) return cleaned;
+      
+      return sentences.map(sentence => 
+        `• ${sentence.trim()}.`
+      ).join('\n');
+    };
     
     return {
       disease: validatedDisease,
       confidence: validatedConfidence,
-      treatment: cleanText(diseaseData.treatment || "Consult with a local agriculture expert for proper treatment guidance."),
-      prevention: cleanText(diseaseData.prevention || "Maintain good field hygiene and proper plant spacing to prevent disease spread.")
+      treatment: formatTreatment(diseaseData.treatment || ""),
+      prevention: formatPrevention(diseaseData.prevention || "")
     };
   } catch (error) {
     console.error("Error processing Gemini response:", error);

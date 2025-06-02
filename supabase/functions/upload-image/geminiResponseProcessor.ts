@@ -97,7 +97,7 @@ function validateConfidence(confidence: any): number {
 
 // Process the Gemini API response text to extract disease data
 export async function processGeminiResponse(analysisText: string): Promise<DiseaseAnalysisResult> {
-  console.log("Processing Gemini response with validation");
+  console.log("Processing Gemini response with validation and formatting");
   
   // Extract the JSON from the response text
   let jsonMatch = analysisText.match(/```json\s*([\s\S]*?)\s*```/) || 
@@ -127,14 +127,14 @@ export async function processGeminiResponse(analysisText: string): Promise<Disea
   const validatedDisease = validateDiseaseName(diseaseData.disease || "Unknown");
   const validatedConfidence = validateConfidence(diseaseData.confidence);
   
-  // Clean text fields
-  const cleanTreatment = diseaseData.treatment ? 
-    textUtils.cleanTextForFarmers(diseaseData.treatment) : 
-    "Consult with a local agriculture expert for treatment advice.";
+  // Format treatment and prevention text properly
+  const formattedTreatment = diseaseData.treatment ? 
+    textUtils.formatTreatmentSteps(diseaseData.treatment) : 
+    "1. Consult with a local agriculture expert for proper treatment guidance.\n2. Monitor your crops regularly for disease symptoms.\n3. Apply appropriate treatments as recommended by experts.";
     
-  const cleanPrevention = diseaseData.prevention ? 
-    textUtils.cleanTextForFarmers(diseaseData.prevention) : 
-    "Practice good field hygiene and proper plant spacing.";
+  const formattedPrevention = diseaseData.prevention ? 
+    textUtils.formatPreventionTips(diseaseData.prevention) : 
+    "• Practice good field hygiene and proper plant spacing.\n• Use disease-resistant seed varieties when available.\n• Implement crop rotation to break disease cycles.";
   
   // Validate affected area
   let affectedArea = diseaseData.affectedArea || "25%";
@@ -146,11 +146,11 @@ export async function processGeminiResponse(analysisText: string): Promise<Disea
     disease: validatedDisease,
     confidence: validatedConfidence,
     affectedArea: affectedArea,
-    treatment: cleanTreatment,
-    prevention: cleanPrevention
+    treatment: formattedTreatment,
+    prevention: formattedPrevention
   };
   
-  console.log("Final validated result:", result);
+  console.log("Final validated and formatted result:", result);
   return result;
 }
 
