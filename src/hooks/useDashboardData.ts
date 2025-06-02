@@ -25,6 +25,12 @@ export function useDashboardData(user: User | null) {
   // Function to fetch dashboard data that can be called multiple times
   const fetchDashboardData = useCallback(async () => {
     if (!user) {
+      setDashboardData({
+        totalScans: 0,
+        diseasesDetected: 0,
+        weatherAlerts: 0,
+        aiChats: 0
+      });
       setIsLoading(false);
       return;
     }
@@ -33,57 +39,72 @@ export function useDashboardData(user: User | null) {
     setError(null);
     
     try {
-      // Fetch total scans count
-      const { count: scansCount, error: scansError } = await supabase
-        .from('scans')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      console.log("Fetching dashboard data for user:", user.id);
       
-      if (scansError) throw scansError;
+      // Fetch all data in parallel for better performance
+      const [scansResult, diseasesResult, weatherResult, chatsResult] = await Promise.all([
+        // Total scans count
+        supabase
+          .from('scans')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        
+        // Diseases detected (scans with a disease name)
+        supabase
+          .from('scans')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .not('disease_name', 'is', null),
+        
+        // Weather alerts count
+        supabase
+          .from('weather_logs')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        
+        // AI chats count
+        supabase
+          .from('ai_chats')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+      ]);
+
+      // Check for errors in any of the queries
+      if (scansResult.error) {
+        console.error("Error fetching scans:", scansResult.error);
+        throw scansResult.error;
+      }
+      if (diseasesResult.error) {
+        console.error("Error fetching diseases:", diseasesResult.error);
+        throw diseasesResult.error;
+      }
+      if (weatherResult.error) {
+        console.error("Error fetching weather logs:", weatherResult.error);
+        throw weatherResult.error;
+      }
+      if (chatsResult.error) {
+        console.error("Error fetching AI chats:", chatsResult.error);
+        throw chatsResult.error;
+      }
       
-      // Fetch diseases detected (scans with a disease name)
-      const { count: diseasesCount, error: diseasesError } = await supabase
-        .from('scans')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .not('disease_name', 'is', null);
-      
-      if (diseasesError) throw diseasesError;
-      
-      // Fetch weather logs count
-      const { count: weatherCount, error: weatherError } = await supabase
-        .from('weather_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      
-      if (weatherError) throw weatherError;
-      
-      // Fetch AI chats count
-      const { count: chatsCount, error: chatsError } = await supabase
-        .from('ai_chats')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      
-      if (chatsError) throw chatsError;
-      
-      setDashboardData({
-        totalScans: scansCount || 0,
-        diseasesDetected: diseasesCount || 0,
-        weatherAlerts: weatherCount || 0,
-        aiChats: chatsCount || 0
-      });
+      const newData = {
+        totalScans: scansResult.count || 0,
+        diseasesDetected: diseasesResult.count || 0,
+        weatherAlerts: weatherResult.count || 0,
+        aiChats: chatsResult.count || 0
+      };
+
+      console.log("Dashboard data fetched:", newData);
+      setDashboardData(newData);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       setError(error instanceof Error ? error : new Error("Failed to fetch dashboard data"));
       
-      // Only show toast on first error, not on repeated failures
-      if (!error) {
-        toast({
-          title: "Dashboard data error",
-          description: "Could not load your dashboard data. Please try again later.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Dashboard data error",
+        description: "Could not load your dashboard data. Please try again later.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -101,46 +122,55 @@ export function useDashboardData(user: User | null) {
     // Initial fetch
     fetchDashboardData();
 
-    // Set up real-time listeners for each table
+    console.log("Setting up real-time subscriptions for user:", user.id);
+
+    // Set up real-time listeners for each table with more specific channel names
     const scanChannel = supabase
-      .channel('scans-changes')
+      .channel(`scans-${user.id}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'scans', filter: `user_id=eq.${user.id}` }, 
-        () => {
+        (payload) => {
           if (mounted) {
-            console.log('Scans table changed, refreshing dashboard data');
+            console.log('Scans table changed:', payload);
             fetchDashboardData();
           }
         })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Scans channel subscription status:', status);
+      });
 
     const weatherChannel = supabase
-      .channel('weather-changes')
+      .channel(`weather-${user.id}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'weather_logs', filter: `user_id=eq.${user.id}` }, 
-        () => {
+        (payload) => {
           if (mounted) {
-            console.log('Weather logs table changed, refreshing dashboard data');
+            console.log('Weather logs table changed:', payload);
             fetchDashboardData();
           }
         })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Weather channel subscription status:', status);
+      });
 
     const chatsChannel = supabase
-      .channel('chats-changes')
+      .channel(`chats-${user.id}`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'ai_chats', filter: `user_id=eq.${user.id}` }, 
-        () => {
+        (payload) => {
           if (mounted) {
-            console.log('AI chats table changed, refreshing dashboard data');
+            console.log('AI chats table changed:', payload);
             fetchDashboardData();
           }
         })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Chats channel subscription status:', status);
+      });
 
     // Clean up subscriptions
     return () => {
       mounted = false;
+      console.log("Cleaning up dashboard subscriptions");
       supabase.removeChannel(scanChannel);
       supabase.removeChannel(weatherChannel);
       supabase.removeChannel(chatsChannel);
