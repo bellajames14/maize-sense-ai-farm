@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, Upload, Save, Database, AlertTriangle, Check } from "lucide-react";
+import { AlertCircle, Upload, Save, Database, AlertTriangle, Check, Leaf, Pill, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFarmerFriendlyName, formatConfidence } from "./diseaseUtils";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -14,6 +14,7 @@ export interface DiseaseAnalysisResult {
   affectedArea?: string;
   treatment: string;
   prevention: string;
+  explanation?: string;
 }
 
 interface AnalysisResultsProps {
@@ -69,6 +70,7 @@ export const AnalysisResults = ({
         </div>
       ) : analysisResult && (
         <>
+          {/* Disease Status Header */}
           <Card className="overflow-hidden">
             <div className={`p-4 ${isHealthy ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'} flex items-center gap-3`}>
               {isHealthy ? 
@@ -83,18 +85,54 @@ export const AnalysisResults = ({
                 </p>
               </div>
             </div>
-            <CardContent className="p-4 space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-medium text-base">{translate("Recommendation")}</h3>
-                <div className="bg-muted rounded-lg p-3 text-sm">
-                  {analysisResult.treatment}
+            
+            {/* Disease Explanation */}
+            {analysisResult.explanation && (
+              <CardContent className="p-4 border-b">
+                <div className="flex items-start gap-3">
+                  <Leaf className="h-5 w-5 text-green-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-sm text-green-700 dark:text-green-400 mb-2">
+                      🌿 {translate("What is this?")}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {analysisResult.explanation}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+            
+            {/* Treatment Section */}
+            <CardContent className="p-4 border-b">
+              <div className="flex items-start gap-3">
+                <Pill className="h-5 w-5 text-blue-600 mt-1 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-sm text-blue-700 dark:text-blue-400 mb-2">
+                    💊 {translate("How to Treat It (Easy Steps)")}
+                  </h4>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
+                    <pre className="whitespace-pre-wrap font-sans text-muted-foreground">
+                      {analysisResult.treatment}
+                    </pre>
+                  </div>
                 </div>
               </div>
-              
-              <div className="space-y-2">
-                <h3 className="font-medium text-base">{translate("Treatment Tips")}</h3>
-                <div className="bg-muted rounded-lg p-3 text-sm">
-                  {analysisResult.prevention}
+            </CardContent>
+            
+            {/* Prevention Section */}
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-orange-600 mt-1 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-sm text-orange-700 dark:text-orange-400 mb-2">
+                    🧑🏾‍🌾 {translate("Tips for Farmers or Students")}
+                  </h4>
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
+                    <pre className="whitespace-pre-wrap font-sans text-muted-foreground">
+                      {analysisResult.prevention}
+                    </pre>
+                  </div>
                 </div>
               </div>
             </CardContent>

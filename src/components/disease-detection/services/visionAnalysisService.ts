@@ -5,50 +5,55 @@ import { processGeminiResponse, ProcessedDiseaseData } from './responseProcessor
 // Gemini API key
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Analyze image with Gemini API with improved farmer-friendly formatting
+// Analyze image with Gemini API using Nigerian farmer-focused prompt
 export const analyzeWithGemini = async (base64Image: string, detectedDisease?: string): Promise<ProcessedDiseaseData> => {
-  // Prepare the enhanced prompt for Gemini with farmer-friendly formatting
+  // Prepare the enhanced prompt for Nigerian farmers with structured format
   let prompt = `
-    You are an expert agricultural specialist helping farmers analyze maize/corn plant diseases.
-    
+    You are an agricultural assistant for a web app helping Nigerian maize farmers and agriculture students.
+
+    A user uploaded a photo of a maize leaf, and it was classified by an AI model as:
+    **Disease Name**: ${detectedDisease || "Unknown"}
+    **Confidence Score**: 85%
+
     CRITICAL VALIDATION REQUIREMENTS:
-    1. ONLY identify diseases from this list: ${KNOWN_MAIZE_DISEASES.join(', ')}
+    1. ONLY identify diseases from this approved list: ${KNOWN_MAIZE_DISEASES.join(', ')}
     2. If plant appears healthy, respond with "Healthy"
-    3. Confidence must be a number between 50-100
-    4. Use simple, clear language that farmers and students can easily understand
-    5. Format your response to be practical and actionable
+    3. Use simple, clear English suitable for rural farmers or students in Nigeria
+    4. Be practical and culturally relevant to Nigerian farming practices
     
-    ANALYSIS REQUIREMENTS:
-    - Examine leaf spots, discoloration, lesions, and growth patterns carefully
-    - Look for characteristic symptoms of common maize diseases
-    - Consider environmental factors that might affect diagnosis
+    Structure your response EXACTLY like this format:
+
+    🌿 What is [DISEASE_NAME]?
+    (Briefly explain what the disease is and what symptoms it shows on maize leaves in 1-2 simple sentences.)
+
+    💊 How to Treat It (Easy Steps)
+    1. [First practical treatment step with local product names]
+    2. [Second treatment step with timing guidance]
+    3. [Third step if needed, mentioning where to get supplies]
+
+    🧑🏾‍🌾 Tips for Farmers or Students
+    • [First prevention tip using local farming practices]
+    • [Second tip about crop rotation or field management]
+    • [Third tip about seeds or monitoring]
+    • [Fourth tip about timing or weather considerations]
+
+    LANGUAGE GUIDELINES:
+    - Use simple words that Nigerian farmers understand
+    - Mention specific fungicide names available in Nigeria (like Ridomil, Score, Ortiva)
+    - Include timing guidance (early morning, after 2 weeks, during rainy season)
+    - Mention where to get supplies (agro store, local dealer, agricultural office)
+    - Be specific about actions (spray, remove, plant, rotate crops)
+    - Avoid technical jargon and use practical language
+    
+    Do not repeat the confidence score or restate the disease name too many times. Keep the tone natural and helpful for Nigerian farmers.
   `;
   
   if (detectedDisease && detectedDisease !== "Unknown") {
-    prompt += `\n\nNote: Initial detection suggested "${detectedDisease}". Please verify or correct this diagnosis based on visual evidence.`;
+    prompt += `\n\nNote: The AI model detected "${detectedDisease}". Please provide advice specifically for this disease.`;
   }
   
-  prompt += `
-    Respond in this EXACT JSON format with farmer-friendly content:
-    {
-      "disease": "exact disease name from the approved list above or 'Healthy'",
-      "confidence": number between 50-100,
-      "treatment": "Write 3-4 simple treatment steps in plain language. Use numbered format (1., 2., 3.). Focus on practical actions farmers can take immediately. Mention specific fungicide names if relevant (like Ridomil, Score, Ortiva). Keep language simple.",
-      "prevention": "Write 3-4 prevention tips in simple language. Use bullet format (•). Focus on practical farming practices like crop rotation, seed selection, field hygiene. Make it actionable for small-scale farmers."
-    }
-    
-    LANGUAGE GUIDELINES:
-    - Use simple words that farmers understand
-    - Avoid technical jargon
-    - Be specific about actions (spray, remove, plant, etc.)
-    - Include timing guidance (early morning, after 2 weeks, etc.)
-    - Mention where to get supplies (agro store, local dealer)
-    
-    IMPORTANT: Ensure confidence is a valid number, not "infinity" or any text.
-  `;
-  
   try {
-    // Call Gemini Vision API with enhanced formatting
+    // Call Gemini Vision API with Nigerian farmer-focused formatting
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
