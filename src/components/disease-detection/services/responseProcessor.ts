@@ -31,8 +31,8 @@ const extractDiseaseDataFromText = (text: string): Partial<ProcessedDiseaseData>
   const result: Partial<ProcessedDiseaseData> = {
     disease: "Unknown",
     confidence: 85,
-    treatment: "Consult with a local agriculture expert for proper treatment guidance.",
-    prevention: "Maintain good field hygiene and proper plant spacing to prevent disease spread."
+    treatment: "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts",
+    prevention: "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread"
   };
   
   // Try to extract disease name
@@ -45,8 +45,8 @@ const extractDiseaseDataFromText = (text: string): Partial<ProcessedDiseaseData>
   if (text.toLowerCase().includes("healthy")) {
     result.disease = "Healthy";
     result.confidence = 95;
-    result.treatment = "No treatment needed. Your plant looks healthy.";
-    result.prevention = "Continue with good farming practices to maintain plant health.";
+    result.treatment = "1. No treatment needed - your plant looks healthy\n2. Continue with current good practices\n3. Keep monitoring regularly for any changes";
+    result.prevention = "• Continue with good farming practices\n• Maintain proper fertilization schedule\n• Keep fields clean and well-drained";
   }
   
   // Try to extract confidence
@@ -67,40 +67,72 @@ const extractDiseaseDataFromText = (text: string): Partial<ProcessedDiseaseData>
   return result;
 };
 
-// Format treatment text as numbered steps
+// Format treatment text as clear numbered steps for farmers
 const formatTreatment = (text: string): string => {
-  if (!text) return "Consult with a local agriculture expert for proper treatment guidance.";
+  if (!text) return "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts";
   
-  // Clean and format as numbered steps
-  const cleaned = text.replace(/\*/g, '').trim();
-  const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  // Clean the text first - remove markdown and excess formatting
+  let cleaned = text
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/^\d+\.\s*/gm, '')
+    .trim();
   
-  if (sentences.length <= 1) return cleaned;
+  // Split into sentences and filter meaningful content
+  const sentences = cleaned
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 15)
+    .slice(0, 4); // Limit to 4 steps max
   
-  return sentences.map((sentence, index) => 
-    `${index + 1}. ${sentence.trim()}.`
-  ).join('\n');
+  if (sentences.length <= 1) {
+    return cleaned.startsWith('1.') ? cleaned : `1. ${cleaned}`;
+  }
+  
+  // Format as numbered steps with proper spacing
+  return sentences
+    .map((sentence, index) => {
+      const step = sentence.replace(/^[-•]\s*/, '').trim();
+      return `${index + 1}. ${step}${step.endsWith('.') ? '' : '.'}`;
+    })
+    .join('\n');
 };
 
-// Format prevention text as bullet points
+// Format prevention text as clear bullet points for farmers
 const formatPrevention = (text: string): string => {
-  if (!text) return "Maintain good field hygiene and proper plant spacing to prevent disease spread.";
+  if (!text) return "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread";
   
-  // Clean and format as bullet points
-  const cleaned = text.replace(/\*/g, '').trim();
-  const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  // Clean the text first - remove markdown and excess formatting
+  let cleaned = text
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/^[•-]\s*/gm, '')
+    .trim();
   
-  if (sentences.length <= 1) return cleaned;
+  // Split into sentences and filter meaningful content
+  const sentences = cleaned
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 15)
+    .slice(0, 4); // Limit to 4 tips max
   
-  return sentences.map(sentence => 
-    `• ${sentence.trim()}.`
-  ).join('\n');
+  if (sentences.length <= 1) {
+    return cleaned.startsWith('•') ? cleaned : `• ${cleaned}`;
+  }
+  
+  // Format as bullet points with proper spacing
+  return sentences
+    .map(sentence => {
+      const tip = sentence.replace(/^\d+\.\s*/, '').trim();
+      return `• ${tip}${tip.endsWith('.') ? '' : '.'}`;
+    })
+    .join('\n');
 };
 
-// Process the Gemini API response to extract disease data
+// Process the Gemini API response to extract and format disease data
 export const processGeminiResponse = (analysisText: string): ProcessedDiseaseData => {
   try {
-    // Try to extract JSON
+    // Try to extract JSON first
     let diseaseData: Partial<ProcessedDiseaseData> = {};
     const jsonData = extractJsonFromResponse(analysisText);
     
@@ -128,8 +160,8 @@ export const processGeminiResponse = (analysisText: string): ProcessedDiseaseDat
     return {
       disease: "Analysis Error",
       confidence: 50,
-      treatment: "We couldn't analyze your image properly. Please try again with a clearer photo.",
-      prevention: "Take photos in good light showing clear symptoms on the plant."
+      treatment: "1. We couldn't analyze your image properly\n2. Please try again with a clearer photo\n3. Make sure the plant symptoms are clearly visible",
+      prevention: "• Take photos in good light showing clear symptoms\n• Make sure the plant fills most of the image\n• Avoid blurry or dark photos for better analysis"
     };
   }
 };
