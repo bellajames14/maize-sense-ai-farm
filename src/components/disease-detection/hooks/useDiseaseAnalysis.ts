@@ -121,6 +121,8 @@ export const useDiseaseAnalysis = () => {
             treatment: recommendations.treatment,
             prevention: recommendations.prevention
           };
+          
+          console.log("Using TensorFlow + Gemini recommendations result:", result);
         } else {
           // Low confidence or unknown disease, use Gemini with the TensorFlow hint
           console.log("Low confidence or unknown disease, falling back to Gemini");
@@ -134,6 +136,7 @@ export const useDiseaseAnalysis = () => {
           });
           
           result = await analyzeWithGemini(base64Data, diseaseName);
+          console.log("Gemini analysis result:", result);
         }
       } catch (tfError) {
         // TensorFlow failed, fall back to Gemini
@@ -148,11 +151,23 @@ export const useDiseaseAnalysis = () => {
         });
         
         result = await analyzeWithGemini(base64Data);
+        console.log("Gemini fallback result:", result);
       }
       
       // Complete the progress bar
       setUploadProgress(100);
-      console.log("Final analysis results:", result);
+      console.log("Final analysis results before setting state:", result);
+      
+      // Validate that we have treatment and prevention
+      if (!result.treatment || result.treatment.trim() === '') {
+        console.error("Missing treatment in result:", result);
+        result.treatment = "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts";
+      }
+      
+      if (!result.prevention || result.prevention.trim() === '') {
+        console.error("Missing prevention in result:", result);
+        result.prevention = "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread";
+      }
       
       // Store results in Supabase if user is logged in
       if (user) {
@@ -182,6 +197,7 @@ export const useDiseaseAnalysis = () => {
         }
       }
       
+      console.log("Setting analysis result:", result);
       setAnalysisResult(result);
       
       // Show success toast

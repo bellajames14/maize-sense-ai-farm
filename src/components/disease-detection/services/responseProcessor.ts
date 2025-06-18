@@ -1,4 +1,3 @@
-
 import { validateDiseaseName, validateConfidence } from './diseaseValidator';
 
 export interface ProcessedDiseaseData {
@@ -12,6 +11,7 @@ export interface ProcessedDiseaseData {
 // Extract structured sections from Nigerian farmer-focused response
 const extractStructuredSections = (analysisText: string): Partial<ProcessedDiseaseData> => {
   console.log("Extracting structured sections from farmer-focused response");
+  console.log("Raw analysis text:", analysisText);
   
   const result: Partial<ProcessedDiseaseData> = {
     disease: "Unknown",
@@ -21,56 +21,93 @@ const extractStructuredSections = (analysisText: string): Partial<ProcessedDisea
     explanation: ""
   };
   
-  // Extract disease name from the "What is" section
-  const whatIsMatch = analysisText.match(/🌿\s*What is ([^?]+)\?/i);
+  // Extract disease name from the "What is" section - more flexible regex
+  const whatIsMatches = [
+    analysisText.match(/🌿\s*What is ([^?]+)\?/i),
+    analysisText.match(/What is ([^?]+)\?/i),
+    analysisText.match(/Disease:\s*([^\n]+)/i)
+  ];
+  
+  const whatIsMatch = whatIsMatches.find(match => match !== null);
   if (whatIsMatch) {
     result.disease = whatIsMatch[1].trim();
+    console.log("Extracted disease:", result.disease);
   }
   
-  // Extract explanation from the "What is" section
-  const explanationMatch = analysisText.match(/🌿\s*What is[^?]+\?\s*([^💊🧑]+)/i);
+  // Extract explanation from the "What is" section - more flexible
+  const explanationMatches = [
+    analysisText.match(/🌿\s*What is[^?]+\?\s*\n([^💊🧑\n]+)/i),
+    analysisText.match(/What is[^?]+\?\s*\n([^💊🧑\n]+)/i),
+    analysisText.match(/🌿[^?]+\?\s*([^💊🧑]+?)(?=💊|🧑|$)/s)
+  ];
+  
+  const explanationMatch = explanationMatches.find(match => match !== null);
   if (explanationMatch) {
     result.explanation = explanationMatch[1].trim().replace(/^\(|\)$/g, '');
+    console.log("Extracted explanation:", result.explanation);
   }
   
-  // Extract treatment from the "How to Treat" section
-  const treatmentMatch = analysisText.match(/💊\s*How to Treat[^💊🧑]*?\n((?:\d+\..*?\n?)+)/i);
+  // Extract treatment - multiple patterns to catch variations
+  const treatmentMatches = [
+    analysisText.match(/💊\s*How to Treat[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si),
+    analysisText.match(/How to Treat[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si),
+    analysisText.match(/💊[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si),
+    analysisText.match(/Treatment[^💊🧑]*?:\s*((?:\d+\..*?(?:\n|$))+)/si)
+  ];
+  
+  const treatmentMatch = treatmentMatches.find(match => match !== null);
   if (treatmentMatch) {
     result.treatment = treatmentMatch[1].trim();
+    console.log("Extracted treatment:", result.treatment);
   }
   
-  // Extract prevention from the "Tips for Farmers" section
-  const preventionMatch = analysisText.match(/🧑🏾‍🌾\s*Tips for Farmers[^🧑]*?\n((?:•.*?\n?)+)/i);
+  // Extract prevention - multiple patterns to catch variations
+  const preventionMatches = [
+    analysisText.match(/🧑🏾‍🌾\s*Tips for Farmers[^🧑]*?\n((?:•.*?(?:\n|$))+)/si),
+    analysisText.match(/Tips for Farmers[^🧑]*?\n((?:•.*?(?:\n|$))+)/si),
+    analysisText.match(/🧑🏾‍🌾[^🧑]*?\n((?:•.*?(?:\n|$))+)/si),
+    analysisText.match(/Prevention[^🧑]*?:\s*((?:•.*?(?:\n|$))+)/si)
+  ];
+  
+  const preventionMatch = preventionMatches.find(match => match !== null);
   if (preventionMatch) {
     result.prevention = preventionMatch[1].trim();
+    console.log("Extracted prevention:", result.prevention);
   }
   
   // If structured extraction fails, try fallback extraction
   if (!result.treatment || !result.prevention) {
-    console.log("Structured extraction failed, using fallback");
-    return extractFallbackData(analysisText);
+    console.log("Structured extraction incomplete, using fallback");
+    const fallbackData = extractFallbackData(analysisText);
+    result.treatment = result.treatment || fallbackData.treatment || "";
+    result.prevention = result.prevention || fallbackData.prevention || "";
   }
   
-  console.log("Extracted structured data:", result);
+  console.log("Final extracted structured data:", result);
   return result;
 };
 
-// Fallback extraction for non-structured responses
+// Enhanced fallback extraction for non-structured responses
 const extractFallbackData = (text: string): Partial<ProcessedDiseaseData> => {
-  console.log("Using fallback extraction");
+  console.log("Using enhanced fallback extraction");
   
   const result: Partial<ProcessedDiseaseData> = {
     disease: "Unknown",
     confidence: 85,
-    treatment: "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts",
-    prevention: "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread",
-    explanation: "A common maize disease that affects plant health and productivity."
+    treatment: "",
+    prevention: "",
+    explanation: ""
   };
   
-  // Try to extract disease name
-  const diseaseMatch = text.match(/Disease:?\s*([^,.]*)/i) || 
-                       text.match(/disease name:?\s*([^,.]*)/i) ||
-                       text.match(/problem:?\s*([^,.]*)/i);
+  // Try to extract disease name from various patterns
+  const diseaseMatches = [
+    text.match(/Disease:?\s*([^,.]*)/i),
+    text.match(/disease name:?\s*([^,.]*)/i),
+    text.match(/problem:?\s*([^,.]*)/i),
+    text.match(/diagnosed as:?\s*([^,.]*)/i)
+  ];
+  
+  const diseaseMatch = diseaseMatches.find(match => match !== null);
   if (diseaseMatch) result.disease = diseaseMatch[1].trim();
   
   // If "healthy" is mentioned, set as healthy
@@ -78,10 +115,29 @@ const extractFallbackData = (text: string): Partial<ProcessedDiseaseData> => {
     result.disease = "Healthy";
     result.confidence = 95;
     result.treatment = "1. No treatment needed - your plant looks healthy\n2. Continue with current good practices\n3. Keep monitoring regularly for any changes";
-    result.prevention = "• Continue with good farming practices\n• Maintain proper fertilization schedule\n• Keep fields clean and well-drained";
+    result.prevention = "• Continue with good farming practices\n• Maintain proper fertilization schedule\n• Keep fields clean and well-drained\n• Monitor plants regularly for any changes";
     result.explanation = "Your maize plant appears to be in good health with no signs of disease.";
+  } else {
+    // Extract any numbered lists for treatment
+    const numberedItems = text.match(/\d+\.\s*[^.]+\./g);
+    if (numberedItems && numberedItems.length > 0) {
+      result.treatment = numberedItems.slice(0, 3).join('\n');
+    } else {
+      result.treatment = "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts";
+    }
+    
+    // Extract any bullet points for prevention
+    const bulletItems = text.match(/[•-]\s*[^.]+\./g);
+    if (bulletItems && bulletItems.length > 0) {
+      result.prevention = bulletItems.slice(0, 4).join('\n');
+    } else {
+      result.prevention = "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread\n• Keep fields clean and well-drained";
+    }
+    
+    result.explanation = "A common maize disease that affects plant health and productivity.";
   }
   
+  console.log("Fallback extraction result:", result);
   return result;
 };
 
@@ -134,6 +190,8 @@ const formatPrevention = (text: string): string => {
 // Process the Gemini API response to extract and format disease data
 export const processGeminiResponse = (analysisText: string): ProcessedDiseaseData => {
   try {
+    console.log("Processing Gemini response, length:", analysisText.length);
+    
     // Try structured extraction first
     let diseaseData = extractStructuredSections(analysisText);
     
@@ -142,13 +200,23 @@ export const processGeminiResponse = (analysisText: string): ProcessedDiseaseDat
     const validatedDisease = validateDiseaseName(rawDisease);
     const validatedConfidence = validateConfidence(diseaseData.confidence);
     
-    return {
+    // Ensure we have treatment and prevention data
+    const finalTreatment = diseaseData.treatment || 
+      "1. We couldn't extract specific treatment advice from the analysis\n2. Please consult with a local agriculture expert\n3. Monitor your crops regularly for disease symptoms";
+      
+    const finalPrevention = diseaseData.prevention || 
+      "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread\n• Keep fields clean and well-drained";
+    
+    const result = {
       disease: validatedDisease,
       confidence: validatedConfidence,
-      treatment: formatTreatment(diseaseData.treatment || ""),
-      prevention: formatPrevention(diseaseData.prevention || ""),
-      explanation: diseaseData.explanation || "Disease information not available."
+      treatment: formatTreatment(finalTreatment),
+      prevention: formatPrevention(finalPrevention),
+      explanation: diseaseData.explanation || "Disease information analysis completed."
     };
+    
+    console.log("Final processed result:", result);
+    return result;
   } catch (error) {
     console.error("Error processing Gemini response:", error);
     return {
