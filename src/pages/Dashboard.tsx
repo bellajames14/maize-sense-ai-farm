@@ -4,21 +4,19 @@ import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnalyticsCards } from "@/components/dashboard/AnalyticsCards";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useEnhancedDashboardData } from "@/hooks/useEnhancedDashboardData";
 import { useEffect } from "react";
 
 const Dashboard = () => {
   const { tab = "disease" } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { dashboardData, isLoading, refreshDashboard } = useDashboardData(user);
+  const { dashboardData, isLoading, refreshDashboard } = useEnhancedDashboardData(user);
 
-  // Handle tab changes
   const handleTabChange = (value: string) => {
     navigate(`/dashboard/${value}`);
   };
 
-  // Refresh dashboard data only when the user changes, not on every tab change
   useEffect(() => {
     if (user) {
       refreshDashboard();

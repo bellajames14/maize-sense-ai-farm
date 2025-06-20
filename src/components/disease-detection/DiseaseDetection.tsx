@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ImageUploader } from "./ImageUploader";
 import { AnalysisResults } from "./AnalysisResults";
 import { ModelInitializer } from "./components/ModelInitializer";
-import { useDiseaseAnalysis } from "./hooks/useDiseaseAnalysis";
+import { useEnhancedDiseaseAnalysis } from "./hooks/useEnhancedDiseaseAnalysis";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
 
@@ -25,7 +25,7 @@ export const DiseaseDetection = () => {
     handleAnalyze,
     handleSaveResults,
     handleReset
-  } = useDiseaseAnalysis();
+  } = useEnhancedDiseaseAnalysis();
 
   return (
     <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
