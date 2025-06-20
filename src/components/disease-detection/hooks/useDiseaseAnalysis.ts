@@ -1,67 +1,34 @@
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DiseaseAnalysisResult } from "../AnalysisResults";
-import { loadModel, predictDisease } from "../tensorflowService";
 import { isKnownDisease } from "../diseaseUtils";
 import { analyzeWithGemini, getGeminiRecommendations } from '../services/geminiService';
 import { saveScanResult } from '../services/databaseService';
+import { useFileHandler } from './useFileHandler';
+import { useTensorFlowAnalysis } from './useTensorFlowAnalysis';
 
 // Minimum confidence threshold
 const MIN_CONFIDENCE_THRESHOLD = 60;
 
 export const useDiseaseAnalysis = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<DiseaseAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const imageRef = useRef<HTMLImageElement | null>(null);
-
-  const handleFileChange = (file: File | null) => {
-    if (file) {
-      setSelectedFile(file);
-      const fileReader = new FileReader();
-      fileReader.onload = () => {
-        setPreviewUrl(fileReader.result as string);
-      };
-      fileReader.readAsDataURL(file);
-      setAnalysisResult(null);
-      setAnalysisError(null);
-    }
-  };
-
-  // Analyze image using TensorFlow.js model
-  const analyzeWithTensorflow = async (): Promise<{diseaseName: string, confidence: number}> => {
-    if (!imageRef.current) {
-      throw new Error("Image reference not available");
-    }
-    
-    // Make sure image is fully loaded
-    return new Promise((resolve, reject) => {
-      if (imageRef.current?.complete) {
-        // Image already loaded
-        predictDisease(imageRef.current)
-          .then(result => resolve(result))
-          .catch(error => reject(error));
-      } else {
-        // Wait for image to load
-        imageRef.current.onload = () => {
-          predictDisease(imageRef.current!)
-            .then(result => resolve(result))
-            .catch(error => reject(error));
-        };
-        imageRef.current.onerror = () => {
-          reject(new Error("Failed to load image for analysis"));
-        };
-      }
-    });
-  };
+  
+  const {
+    selectedFile,
+    previewUrl,
+    handleFileChange,
+    handleReset: resetFile
+  } = useFileHandler();
+  
+  const { imageRef, analyzeWithTensorflow } = useTensorFlowAnalysis();
 
   const handleAnalyze = async () => {
     if (!selectedFile || !previewUrl) {
@@ -87,15 +54,6 @@ export const useDiseaseAnalysis = () => {
       // Extract base64 data for using in Gemini API calls later if needed
       const base64Data = previewUrl.split(',')[1];
       
-      // Create hidden image element for TensorFlow.js
-      if (!imageRef.current) {
-        imageRef.current = new Image();
-        imageRef.current.crossOrigin = "anonymous";
-        imageRef.current.src = previewUrl;
-      } else {
-        imageRef.current.src = previewUrl;
-      }
-      
       // First try to detect disease with TensorFlow.js model
       setUploadProgress(40);
       let result: DiseaseAnalysisResult;
@@ -103,7 +61,7 @@ export const useDiseaseAnalysis = () => {
       try {
         // Analyze with TensorFlow model
         console.log("Analyzing with TensorFlow.js model");
-        const tfPrediction = await analyzeWithTensorflow();
+        const tfPrediction = await analyzeWithTensorflow(previewUrl);
         const { diseaseName, confidence } = tfPrediction;
         console.log("TensorFlow.js prediction:", diseaseName, confidence);
         
@@ -251,8 +209,7 @@ export const useDiseaseAnalysis = () => {
   };
 
   const handleReset = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    resetFile();
     setAnalysisResult(null);
     setAnalysisError(null);
     setUploadProgress(0);
