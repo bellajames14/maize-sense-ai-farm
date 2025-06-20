@@ -1,3 +1,4 @@
+
 import { validateDiseaseName, validateConfidence } from './diseaseValidator';
 
 export interface ProcessedDiseaseData {
@@ -5,15 +6,14 @@ export interface ProcessedDiseaseData {
   confidence: number;
   treatment: string;
   prevention: string;
-  explanation?: string; // New field for disease explanation
+  explanation?: string;
 }
 
-// Extract structured sections from Nigerian farmer-focused response
-const extractStructuredSections = (analysisText: string): Partial<ProcessedDiseaseData> => {
-  console.log("Extracting structured sections from farmer-focused response");
-  console.log("Raw analysis text:", analysisText);
+// Extract data from the structured Gemini response
+const extractStructuredData = (analysisText: string): ProcessedDiseaseData => {
+  console.log("Processing structured Gemini response");
   
-  const result: Partial<ProcessedDiseaseData> = {
+  const result: ProcessedDiseaseData = {
     disease: "Unknown",
     confidence: 85,
     treatment: "",
@@ -21,38 +21,38 @@ const extractStructuredSections = (analysisText: string): Partial<ProcessedDisea
     explanation: ""
   };
   
-  // Extract disease name from the "What is" section - more flexible regex
-  const whatIsMatches = [
-    analysisText.match(/🌿\s*What is ([^?]+)\?/i),
-    analysisText.match(/What is ([^?]+)\?/i),
-    analysisText.match(/Disease:\s*([^\n]+)/i)
+  // Extract disease name from "What is this?" section
+  const diseaseMatches = [
+    analysisText.match(/🌿\s*\*\*What is this\?\*\*\s*\n([^\n]+)/i),
+    analysisText.match(/What is this\?\s*\n([^\n]+)/i),
+    analysisText.match(/🌿[^*]*\*\*\s*\n([^\n]+)/i)
   ];
   
-  const whatIsMatch = whatIsMatches.find(match => match !== null);
-  if (whatIsMatch) {
-    result.disease = whatIsMatch[1].trim();
+  const diseaseMatch = diseaseMatches.find(match => match !== null);
+  if (diseaseMatch) {
+    result.disease = diseaseMatch[1].trim().replace(/[\[\]]/g, '');
     console.log("Extracted disease:", result.disease);
   }
   
-  // Extract explanation from the "What is" section - more flexible
-  const explanationMatches = [
-    analysisText.match(/🌿\s*What is[^?]+\?\s*\n([^💊🧑\n]+)/i),
-    analysisText.match(/What is[^?]+\?\s*\n([^💊🧑\n]+)/i),
-    analysisText.match(/🌿[^?]+\?\s*([^💊🧑]+?)(?=💊|🧑|$)/s)
+  // Extract confidence from "How sure are we?" section
+  const confidenceMatches = [
+    analysisText.match(/📊\s*\*\*How sure are we\?\*\*\s*\n([^\n]+)/i),
+    analysisText.match(/How sure are we\?\s*\n([^\n]+)/i),
+    analysisText.match(/(\d+)%/i)
   ];
   
-  const explanationMatch = explanationMatches.find(match => match !== null);
-  if (explanationMatch) {
-    result.explanation = explanationMatch[1].trim().replace(/^\(|\)$/g, '');
-    console.log("Extracted explanation:", result.explanation);
+  const confidenceMatch = confidenceMatches.find(match => match !== null);
+  if (confidenceMatch) {
+    const confText = confidenceMatch[1] || confidenceMatch[0];
+    const confNumber = parseInt(confText.match(/\d+/)?.[0] || "85");
+    result.confidence = confNumber;
+    console.log("Extracted confidence:", result.confidence);
   }
   
-  // Extract treatment - multiple patterns to catch variations
+  // Extract treatment from "How to Treat It" section
   const treatmentMatches = [
-    analysisText.match(/💊\s*How to Treat[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si),
-    analysisText.match(/How to Treat[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si),
-    analysisText.match(/💊[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si),
-    analysisText.match(/Treatment[^💊🧑]*?:\s*((?:\d+\..*?(?:\n|$))+)/si)
+    analysisText.match(/💊\s*\*\*How to Treat It[^*]*\*\*\s*\n((?:\d+\..*?(?:\n|$))+)/si),
+    analysisText.match(/How to Treat It[^💊🧑]*?\n((?:\d+\..*?(?:\n|$))+)/si)
   ];
   
   const treatmentMatch = treatmentMatches.find(match => match !== null);
@@ -61,12 +61,10 @@ const extractStructuredSections = (analysisText: string): Partial<ProcessedDisea
     console.log("Extracted treatment:", result.treatment);
   }
   
-  // Extract prevention - multiple patterns to catch variations
+  // Extract prevention from "Tips for Farmers" section
   const preventionMatches = [
-    analysisText.match(/🧑🏾‍🌾\s*Tips for Farmers[^🧑]*?\n((?:•.*?(?:\n|$))+)/si),
-    analysisText.match(/Tips for Farmers[^🧑]*?\n((?:•.*?(?:\n|$))+)/si),
-    analysisText.match(/🧑🏾‍🌾[^🧑]*?\n((?:•.*?(?:\n|$))+)/si),
-    analysisText.match(/Prevention[^🧑]*?:\s*((?:•.*?(?:\n|$))+)/si)
+    analysisText.match(/🧑🏾‍🌾\s*\*\*Tips for Farmers\*\*\s*\n((?:•.*?(?:\n|$))+)/si),
+    analysisText.match(/Tips for Farmers[^🧑]*?\n((?:•.*?(?:\n|$))+)/si)
   ];
   
   const preventionMatch = preventionMatches.find(match => match !== null);
@@ -75,156 +73,87 @@ const extractStructuredSections = (analysisText: string): Partial<ProcessedDisea
     console.log("Extracted prevention:", result.prevention);
   }
   
-  // If structured extraction fails, try fallback extraction
-  if (!result.treatment || !result.prevention) {
-    console.log("Structured extraction incomplete, using fallback");
-    const fallbackData = extractFallbackData(analysisText);
-    result.treatment = result.treatment || fallbackData.treatment || "";
-    result.prevention = result.prevention || fallbackData.prevention || "";
-  }
-  
-  console.log("Final extracted structured data:", result);
   return result;
 };
 
-// Enhanced fallback extraction for non-structured responses
-const extractFallbackData = (text: string): Partial<ProcessedDiseaseData> => {
-  console.log("Using enhanced fallback extraction");
+// Handle special cases based on disease type
+const handleSpecialCases = (disease: string): ProcessedDiseaseData => {
+  const normalizedDisease = disease.toLowerCase().trim();
   
-  const result: Partial<ProcessedDiseaseData> = {
-    disease: "Unknown",
+  // Case 1: Healthy plant
+  if (normalizedDisease === "healthy" || normalizedDisease.includes("healthy")) {
+    return {
+      disease: "Healthy",
+      confidence: 95,
+      treatment: "1. No treatment needed - your maize plant looks healthy!\n2. Continue with your current good farming practices\n3. Keep monitoring your plants regularly for any changes",
+      prevention: "• Maintain proper fertilization with NPK as needed\n• Keep your field clean and free from weeds\n• Use quality seeds from certified dealers\n• Practice crop rotation to maintain soil health",
+      explanation: "Great news! Your maize plant appears to be in excellent health with no signs of disease."
+    };
+  }
+  
+  // Case 2: Unrecognized plant
+  if (normalizedDisease === "unrecognized plant" || normalizedDisease.includes("unrecognized") || normalizedDisease.includes("cannot identify")) {
+    return {
+      disease: "Unrecognized Plant",
+      confidence: 50,
+      treatment: "1. This plant cannot be clearly identified from the photo\n2. Try taking a clearer photo in good daylight\n3. Ask our AI chat assistant for help with plant identification",
+      prevention: "• Take photos during daylight with symptoms clearly visible\n• Make sure the plant fills most of the image\n• Use our AI chat assistant for detailed plant questions\n• Consult with local agricultural extension officers",
+      explanation: "We cannot clearly identify this plant from the uploaded image. Please try a clearer photo or use our AI chat assistant for help."
+    };
+  }
+  
+  // Case 3: Analysis error
+  if (normalizedDisease === "analysis error" || normalizedDisease.includes("error")) {
+    return {
+      disease: "Analysis Error",
+      confidence: 50,
+      treatment: "1. There was an error analyzing your image\n2. Please try uploading a clearer photo\n3. You can ask our AI chat assistant for help",
+      prevention: "• Ensure good lighting when taking photos\n• Make sure plant symptoms are clearly visible\n• Try again with a different angle or closer view\n• Use our AI chat assistant for additional support",
+      explanation: "We encountered an error while analyzing your image. Please try again or use our AI chat assistant."
+    };
+  }
+  
+  return {
+    disease: validateDiseaseName(disease),
     confidence: 85,
-    treatment: "",
-    prevention: "",
-    explanation: ""
+    treatment: "1. Consult with local agricultural extension officers\n2. Show them the affected plant parts\n3. Apply recommended treatments as advised",
+    prevention: "• Practice good field hygiene and plant spacing\n• Use certified disease-resistant seed varieties\n• Implement proper crop rotation practices\n• Monitor plants regularly for early detection",
+    explanation: `This appears to be ${validateDiseaseName(disease)}, a condition that affects maize plants.`
   };
-  
-  // Try to extract disease name from various patterns
-  const diseaseMatches = [
-    text.match(/Disease:?\s*([^,.]*)/i),
-    text.match(/disease name:?\s*([^,.]*)/i),
-    text.match(/problem:?\s*([^,.]*)/i),
-    text.match(/diagnosed as:?\s*([^,.]*)/i)
-  ];
-  
-  const diseaseMatch = diseaseMatches.find(match => match !== null);
-  if (diseaseMatch) result.disease = diseaseMatch[1].trim();
-  
-  // If "healthy" is mentioned, set as healthy
-  if (text.toLowerCase().includes("healthy")) {
-    result.disease = "Healthy";
-    result.confidence = 95;
-    result.treatment = "1. No treatment needed - your plant looks healthy\n2. Continue with current good practices\n3. Keep monitoring regularly for any changes";
-    result.prevention = "• Continue with good farming practices\n• Maintain proper fertilization schedule\n• Keep fields clean and well-drained\n• Monitor plants regularly for any changes";
-    result.explanation = "Your maize plant appears to be in good health with no signs of disease.";
-  } else {
-    // Extract any numbered lists for treatment
-    const numberedItems = text.match(/\d+\.\s*[^.]+\./g);
-    if (numberedItems && numberedItems.length > 0) {
-      result.treatment = numberedItems.slice(0, 3).join('\n');
-    } else {
-      result.treatment = "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts";
-    }
-    
-    // Extract any bullet points for prevention
-    const bulletItems = text.match(/[•-]\s*[^.]+\./g);
-    if (bulletItems && bulletItems.length > 0) {
-      result.prevention = bulletItems.slice(0, 4).join('\n');
-    } else {
-      result.prevention = "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread\n• Keep fields clean and well-drained";
-    }
-    
-    result.explanation = "A common maize disease that affects plant health and productivity.";
-  }
-  
-  console.log("Fallback extraction result:", result);
-  return result;
 };
 
-// Format treatment text as clear numbered steps
-const formatTreatment = (text: string): string => {
-  if (!text) return "1. Consult with a local agriculture expert for proper treatment guidance\n2. Monitor your crops regularly for disease symptoms\n3. Apply appropriate treatments as recommended by experts";
-  
-  // If already well formatted, return as is
-  if (/^\d+\.\s/.test(text.trim())) {
-    return text.trim();
-  }
-  
-  // Clean and format as numbered steps
-  const sentences = text
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 15)
-    .slice(0, 3);
-  
-  return sentences
-    .map((sentence, index) => `${index + 1}. ${sentence}${sentence.endsWith('.') ? '' : '.'}`)
-    .join('\n');
-};
-
-// Format prevention text as clear bullet points
-const formatPrevention = (text: string): string => {
-  if (!text) return "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread";
-  
-  // If already well formatted, return as is
-  if (/^•\s/.test(text.trim())) {
-    return text.trim();
-  }
-  
-  // Clean and format as bullet points
-  const sentences = text
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 15)
-    .slice(0, 4);
-  
-  return sentences
-    .map(sentence => `• ${sentence}${sentence.endsWith('.') ? '' : '.'}`)
-    .join('\n');
-};
-
-// Process the Gemini API response to extract and format disease data
+// Main function to process Gemini response
 export const processGeminiResponse = (analysisText: string): ProcessedDiseaseData => {
   try {
     console.log("Processing Gemini response, length:", analysisText.length);
     
-    // Try structured extraction first
-    let diseaseData = extractStructuredSections(analysisText);
+    // Extract structured data
+    let result = extractStructuredData(analysisText);
     
-    // Clean and validate the extracted data
-    const rawDisease = diseaseData.disease || "Unknown";
-    const validatedDisease = validateDiseaseName(rawDisease);
-    const validatedConfidence = validateConfidence(diseaseData.confidence);
-    
-    // Ensure we have treatment and prevention data
-    const finalTreatment = diseaseData.treatment || 
-      "1. We couldn't extract specific treatment advice from the analysis\n2. Please consult with a local agriculture expert\n3. Monitor your crops regularly for disease symptoms";
+    // Handle cases where extraction didn't work well
+    if (!result.treatment || !result.prevention) {
+      console.log("Extraction incomplete, using special case handling");
+      result = handleSpecialCases(result.disease);
+    } else {
+      // Validate and clean extracted data
+      result.disease = validateDiseaseName(result.disease);
+      result.confidence = validateConfidence(result.confidence);
       
-    const finalPrevention = diseaseData.prevention || 
-      "• Maintain good field hygiene and proper plant spacing\n• Use disease-resistant seed varieties when available\n• Practice crop rotation to prevent disease spread\n• Keep fields clean and well-drained";
-    
-    const result = {
-      disease: validatedDisease,
-      confidence: validatedConfidence,
-      treatment: formatTreatment(finalTreatment),
-      prevention: formatPrevention(finalPrevention),
-      explanation: diseaseData.explanation || "Disease information analysis completed."
-    };
+      // Set explanation based on disease type
+      if (result.disease === "Healthy") {
+        result.explanation = "Great news! Your maize plant appears healthy with no signs of disease.";
+      } else if (result.disease === "Unrecognized Plant") {
+        result.explanation = "We cannot clearly identify this plant. Please try a clearer photo or ask our AI assistant.";
+      } else {
+        result.explanation = `This appears to be ${result.disease}, a condition that can affect maize plant health.`;
+      }
+    }
     
     console.log("Final processed result:", result);
     return result;
+    
   } catch (error) {
-    console.error("Error processing Gemini response:", error);
-    return {
-      disease: "Analysis Error",
-      confidence: 50,
-      treatment: "1. We couldn't analyze your image properly\n2. Please try again with a clearer photo\n3. Make sure the plant symptoms are clearly visible",
-      prevention: "• Take photos in good light showing clear symptoms\n• Make sure the plant fills most of the image\n• Avoid blurry or dark photos for better analysis",
-      explanation: "Unable to analyze the uploaded image. Please try again with a clearer photo."
-    };
+    console.error("Error processing response:", error);
+    return handleSpecialCases("Analysis Error");
   }
 };
