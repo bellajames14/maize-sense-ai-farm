@@ -32,15 +32,30 @@ export const loadModelWithFallback = async (modelUrl: string): Promise<tf.Layers
     // Set TensorFlow backend to webgl for better performance
     try {
       await tf.setBackend('webgl');
+      await tf.ready();
     } catch (backendError) {
       console.warn("WebGL backend not available, using CPU");
       await tf.setBackend('cpu');
+      await tf.ready();
     }
     
-    const model = await tf.loadLayersModel(modelUrl);
+    // Try to load the model with proper error handling
+    const model = await tf.loadLayersModel(modelUrl, {
+      onProgress: (fraction) => {
+        console.log(`Model loading progress: ${(fraction * 100).toFixed(1)}%`);
+      }
+    });
+    
     console.log("Model loaded successfully");
     console.log("Model input shape:", model.inputs[0].shape);
     console.log("Model output shape:", model.outputs[0].shape);
+    
+    // Warm up the model with a dummy prediction
+    const dummyInput = tf.zeros([1, 224, 224, 3]);
+    const warmupPrediction = model.predict(dummyInput) as tf.Tensor;
+    warmupPrediction.dispose();
+    dummyInput.dispose();
+    console.log("Model warmed up successfully");
     
     return model;
   } catch (error) {

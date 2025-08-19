@@ -15,20 +15,25 @@ serve(async (req) => {
   try {
     const { predictedClass, accuracy } = await req.json()
     
-    const genAI = new GoogleGenerativeAI(Deno.env.get('VITE_GEMINI_API_KEY') || '')
+    const apiKey = Deno.env.get('VITE_GEMINI_API_KEY')
+    if (!apiKey) {
+      throw new Error('Gemini API key not found')
+    }
+    
+    const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
     const prompt = `You are an expert agronomist specializing in maize disease management.
 A machine learning model predicted: ${predictedClass} with ${accuracy}% confidence.
 
-Please provide farmer-friendly advice in the following format:
+Provide farmer-friendly advice in exactly this format:
 
 **Confirmation:** Brief statement about the detected condition
-**Prevention Steps:** 3-4 immediate actions to prevent spread
-**Treatment Options:** Specific treatments available 
-**Additional Recommendations:** General care tips
+**Prevention:** 3-4 immediate actions to prevent spread  
+**Treatment:** Specific treatments available
+**Recommendations:** General care tips
 
-Keep responses practical and actionable for farmers.`
+Keep responses practical, clear, and actionable for farmers. Use simple language.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
