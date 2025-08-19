@@ -26,10 +26,6 @@ export const DiseaseDetection = () => {
     initializeModel
   } = useOptimizedDiseaseAnalysis();
 
-  useEffect(() => {
-    initializeModel();
-  }, []);
-
   return (
     <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
       <Card>
@@ -40,34 +36,24 @@ export const DiseaseDetection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {!isModelLoaded && (
-              <div className="text-center py-4">
-                <Button onClick={initializeModel} variant="outline">
-                  Load Detection Model
-                </Button>
-              </div>
-            )}
-            
-            <ImageUploader
-              selectedFile={selectedFile}
-              previewUrl={previewUrl}
-              isAnalyzing={isAnalyzing}
-              uploadProgress={0}
-              onFileChange={handleFileChange}
-              onAnalyze={handleAnalyze}
-              onReset={handleReset}
-              isModelLoaded={isModelLoaded}
-            />
-            
-            <img 
-              ref={imageRef}
-              src={previewUrl || ''}
-              className="hidden"
-              alt="Hidden"
-              crossOrigin="anonymous"
-            />
-          </div>
+          <ImageUploader
+            selectedFile={selectedFile}
+            previewUrl={previewUrl}
+            isAnalyzing={isAnalyzing}
+            uploadProgress={0}
+            onFileChange={handleFileChange}
+            onAnalyze={handleAnalyze}
+            onReset={handleReset}
+            isModelLoaded={true}
+          />
+          
+          <img 
+            ref={imageRef}
+            src={previewUrl || ''}
+            className="hidden"
+            alt="Hidden"
+            crossOrigin="anonymous"
+          />
         </CardContent>
       </Card>
 

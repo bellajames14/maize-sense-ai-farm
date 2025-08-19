@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useFileHandler } from "./useFileHandler";
-import { loadModel } from "../services/modelLoader";
+import { loadModelWithFallback } from "../services/enhancedModelLoader";
 import { preprocessImage } from "../services/imageProcessor";
 import { knownDiseases } from "../diseaseUtils";
 import * as tf from '@tensorflow/tfjs';
@@ -22,6 +22,7 @@ export const useOptimizedDiseaseAnalysis = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model_v1/model.json';
   
   const {
     selectedFile,
@@ -30,10 +31,26 @@ export const useOptimizedDiseaseAnalysis = () => {
     handleReset: resetFile
   } = useFileHandler();
 
-  // Initialize model on first use
+  // Initialize model automatically on component mount
+  useEffect(() => {
+    const initModel = async () => {
+      try {
+        console.log("Auto-initializing model...");
+        await loadModelWithFallback(MODEL_URL);
+        setIsModelLoaded(true);
+        console.log("Model auto-initialization successful");
+      } catch (error) {
+        console.error("Model auto-initialization failed:", error);
+        setIsModelLoaded(false);
+      }
+    };
+
+    initModel();
+  }, []);
+
   const initializeModel = async () => {
     try {
-      await loadModel();
+      await loadModelWithFallback(MODEL_URL);
       setIsModelLoaded(true);
       toast({
         title: "Model Ready",
@@ -87,7 +104,8 @@ export const useOptimizedDiseaseAnalysis = () => {
       try {
         // Try TensorFlow model prediction
         console.log("Starting TensorFlow prediction...");
-        const model = await loadModel();
+        
+        const model = await loadModelWithFallback(MODEL_URL);
         const processedImg = await preprocessImage(imageRef.current!);
         
         const predictions = await model.predict(processedImg) as tf.Tensor;
@@ -121,7 +139,7 @@ export const useOptimizedDiseaseAnalysis = () => {
       } else {
         // Use Gemini for recommendations only
         try {
-          const response = await fetch('/api/gemini-recommendations', {
+          const response = await fetch('https://sfsdfdcdethqjwtjrwpz.supabase.co/functions/v1/gemini-recommendations', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
