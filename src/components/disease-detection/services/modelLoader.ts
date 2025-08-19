@@ -3,7 +3,7 @@ import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from '../diseaseUtils';
 
 // Use the Supabase-hosted model URL with correct path to weight files
-const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model/model.json';
+const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model_v1/model.json';
 let model: tf.LayersModel | null = null;
 let modelLoadingPromise: Promise<tf.LayersModel> | null = null;
 let modelLoadFailed = false;

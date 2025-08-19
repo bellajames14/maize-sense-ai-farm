@@ -1,15 +1,14 @@
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageUploader } from "./ImageUploader";
-import { AnalysisResults } from "./AnalysisResults";
-import { ModelInitializer } from "./components/ModelInitializer";
-import { useEnhancedDiseaseAnalysis } from "./hooks/useEnhancedDiseaseAnalysis";
+import { OptimizedAnalysisResults } from "./OptimizedAnalysisResults";
+import { useOptimizedDiseaseAnalysis } from "./hooks/useOptimizedDiseaseAnalysis";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
+import { Button } from "@/components/ui/button";
 
 export const DiseaseDetection = () => {
-  const [isModelLoaded, setIsModelLoaded] = useState(false);
   const isMobile = useIsMobile();
   const { translate } = usePreferences();
   
@@ -17,15 +16,19 @@ export const DiseaseDetection = () => {
     selectedFile,
     previewUrl,
     isAnalyzing,
-    uploadProgress,
     analysisResult,
     analysisError,
+    isModelLoaded,
     imageRef,
     handleFileChange,
     handleAnalyze,
-    handleSaveResults,
-    handleReset
-  } = useEnhancedDiseaseAnalysis();
+    handleReset,
+    initializeModel
+  } = useOptimizedDiseaseAnalysis();
+
+  useEffect(() => {
+    initializeModel();
+  }, []);
 
   return (
     <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
@@ -37,24 +40,34 @@ export const DiseaseDetection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ModelInitializer onModelLoaded={setIsModelLoaded} />
-          <ImageUploader
-            selectedFile={selectedFile}
-            previewUrl={previewUrl}
-            isAnalyzing={isAnalyzing}
-            uploadProgress={uploadProgress}
-            onFileChange={handleFileChange}
-            onAnalyze={handleAnalyze}
-            onReset={handleReset}
-            isModelLoaded={isModelLoaded}
-          />
-          <img 
-            ref={imageRef}
-            src={previewUrl || ''}
-            className="hidden"
-            alt="Hidden"
-            crossOrigin="anonymous"
-          />
+          <div className="space-y-4">
+            {!isModelLoaded && (
+              <div className="text-center py-4">
+                <Button onClick={initializeModel} variant="outline">
+                  Load Detection Model
+                </Button>
+              </div>
+            )}
+            
+            <ImageUploader
+              selectedFile={selectedFile}
+              previewUrl={previewUrl}
+              isAnalyzing={isAnalyzing}
+              uploadProgress={0}
+              onFileChange={handleFileChange}
+              onAnalyze={handleAnalyze}
+              onReset={handleReset}
+              isModelLoaded={isModelLoaded}
+            />
+            
+            <img 
+              ref={imageRef}
+              src={previewUrl || ''}
+              className="hidden"
+              alt="Hidden"
+              crossOrigin="anonymous"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -70,12 +83,10 @@ export const DiseaseDetection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AnalysisResults
+          <OptimizedAnalysisResults
             isAnalyzing={isAnalyzing}
-            uploadProgress={uploadProgress}
             analysisResult={analysisResult}
             analysisError={analysisError}
-            onSaveResults={handleSaveResults}
             onReset={handleReset}
           />
         </CardContent>
