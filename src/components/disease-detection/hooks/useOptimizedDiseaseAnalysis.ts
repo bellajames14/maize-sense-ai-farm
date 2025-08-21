@@ -102,28 +102,35 @@ export const useOptimizedDiseaseAnalysis = () => {
       let accuracyPercent = 0;
 
       try {
-        // Try TensorFlow model prediction
-        console.log("Starting TensorFlow prediction...");
+        // Try MobileNetV2 model prediction
+        console.log("Starting MobileNetV2 prediction...");
         
         const model = await loadModelWithFallback(MODEL_URL);
         const processedImg = await preprocessImage(imageRef.current!);
         
+        console.log("Running model prediction...");
         const predictions = await model.predict(processedImg) as tf.Tensor;
         const predictionArray = await predictions.data();
         
-        // Find highest probability
+        console.log("Raw predictions:", Array.from(predictionArray));
+        console.log("Class labels:", knownDiseases);
+        
+        // Find highest probability (class with maximum confidence)
         const maxIndex = Array.from(predictionArray).reduce(
           (iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 
           0
         );
         
+        const maxProbability = predictionArray[maxIndex];
         predictedClass = knownDiseases[maxIndex] || "Unknown";
-        accuracyPercent = Math.round(predictionArray[maxIndex] * 100);
+        
+        // Convert to percentage with 2 decimal places
+        accuracyPercent = Math.round(maxProbability * 10000) / 100;
         
         // Cleanup tensors
         tf.dispose([processedImg, predictions]);
         
-        console.log(`TensorFlow prediction: ${predictedClass} (${accuracyPercent}%)`);
+        console.log(`MobileNetV2 prediction: ${predictedClass} with ${accuracyPercent.toFixed(2)}% confidence`);
       } catch (tfError) {
         console.error("TensorFlow prediction failed:", tfError);
         predictedClass = "Model_Error";

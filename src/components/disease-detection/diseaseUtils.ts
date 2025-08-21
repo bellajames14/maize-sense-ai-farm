@@ -10,15 +10,13 @@ export const diseaseNameMapping: Record<string, string> = {
   "Healthy": "Healthy Plant"
 };
 
-// List of known diseases - must match model output order exactly
+// List of known diseases - must match MobileNetV2 model output order exactly
 export const knownDiseases = [
   "Blight",
   "Common_Rust", 
   "Gray_Leaf_Spot",
   "Healthy",
-  "maize ear rot",
-  "maize fall armyworm",
-  "maize stem borer"
+  "maize ear rot"
 ];
 
 // Get the farmer-friendly name for a disease

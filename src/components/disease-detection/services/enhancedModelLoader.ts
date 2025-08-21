@@ -17,7 +17,7 @@ export const createSimpleModel = () => {
       tf.layers.globalAveragePooling2d({}),
       tf.layers.dense({ units: 128, activation: 'relu' }),
       tf.layers.dropout({ rate: 0.5 }),
-      tf.layers.dense({ units: 7, activation: 'softmax' }) // 7 classes
+      tf.layers.dense({ units: 5, activation: 'softmax' }) // 5 classes for MobileNetV2
     ]
   });
   
