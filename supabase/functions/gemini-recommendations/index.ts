@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     const { predictedClass, accuracy } = await req.json()
     
-    const apiKey = Deno.env.get('VITE_GEMINI_API_KEY')
+    const apiKey = Deno.env.get('GEMINI_API_KEY')
     if (!apiKey) {
       throw new Error('Gemini API key not found')
     }
