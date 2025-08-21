@@ -1,22 +1,24 @@
 
 // Map API disease names to farmer-friendly names
 export const diseaseNameMapping: Record<string, string> = {
-  "Maize Ear Rot": "Cob Rot",
-  "Fall Armyworm": "Army Worm",
-  "Stem Borer": "Stem Drill Worm",
-  "Common Rust": "Rust Spots",
-  "Gray Leaf Spot": "Grey Leaf Disease",
   "Blight": "Leaf Blight",
-  "Healthy": "Healthy Plant"
+  "Common_Rust": "Rust Spots", 
+  "Gray_Leaf_Spot": "Grey Leaf Disease",
+  "Healthy": "Healthy Plant",
+  "maize ear rot": "Cob Rot",
+  "maize fall armyworm": "Army Worm",
+  "maize stem borer": "Stem Drill Worm"
 };
 
 // List of known diseases - must match MobileNetV2 model output order exactly
 export const knownDiseases = [
   "Blight",
-  "Common_Rust", 
-  "Gray_Leaf_Spot",
+  "Common_Rust",
+  "Gray_Leaf_Spot", 
   "Healthy",
-  "maize ear rot"
+  "maize ear rot",
+  "maize fall armyworm",
+  "maize stem borer"
 ];
 
 // Get the farmer-friendly name for a disease
