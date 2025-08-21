@@ -7,6 +7,17 @@ import { CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { usePreferences } from "@/hooks/usePreferences";
 import type { OptimizedAnalysisResult } from "./hooks/useOptimizedDiseaseAnalysis";
 
+// Clean up markdown formatting for better readability
+const cleanMarkdownText = (text: string): string => {
+  return text
+    // Remove asterisks for bold formatting
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    // Clean up multiple spaces and line breaks
+    .replace(/\n\s*\n/g, '\n\n')
+    .trim();
+};
+
 interface OptimizedAnalysisResultsProps {
   isAnalyzing: boolean;
   analysisResult: OptimizedAnalysisResult | null;
@@ -103,8 +114,42 @@ export const OptimizedAnalysisResults = ({
         </CardHeader>
         <CardContent>
           <div className="prose prose-sm max-w-none">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {analysisResult.recommendations}
+            <div className="whitespace-pre-wrap text-sm leading-relaxed space-y-2">
+              {cleanMarkdownText(analysisResult.recommendations).split('\n\n').map((paragraph, index) => (
+                <div key={index} className="mb-3">
+                  {paragraph.split('\n').map((line, lineIndex) => {
+                    const isHeader = line.startsWith('**') || line.includes('What it means') || line.includes('Prevention Steps') || line.includes('Treatment Options') || line.includes('General Care');
+                    const isBullet = line.trim().startsWith('*') || line.trim().startsWith('-');
+                    
+                    if (isHeader) {
+                      return (
+                        <h4 key={lineIndex} className="font-semibold text-primary mb-2 mt-4 first:mt-0">
+                          {line.replace(/\*\*/g, '').trim()}
+                        </h4>
+                      );
+                    }
+                    
+                    if (isBullet) {
+                      return (
+                        <div key={lineIndex} className="flex items-start gap-2 ml-4 mb-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                          <span className="text-sm">{line.replace(/^\s*[\*\-]\s*/, '').trim()}</span>
+                        </div>
+                      );
+                    }
+                    
+                    if (line.trim()) {
+                      return (
+                        <p key={lineIndex} className="text-sm leading-relaxed mb-2">
+                          {line.trim()}
+                        </p>
+                      );
+                    }
+                    
+                    return null;
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </CardContent>
