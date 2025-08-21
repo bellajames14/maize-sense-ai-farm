@@ -137,12 +137,12 @@ export const useOptimizedDiseaseAnalysis = () => {
         accuracyPercent = 0;
       }
 
-      // Get Gemini recommendations
+      // Get Gemini recommendations with exact prompt
       let recommendations = "";
       
       if (predictedClass === "Unknown" || predictedClass === "Model_Error") {
         // Fallback: Use Gemini for full analysis
-        recommendations = "The model cannot identify this disease. Our AI assistant will analyze the image using advanced vision capabilities. Please try uploading a clearer image of the affected plant area, or consult with our AI assistant for detailed analysis.";
+        recommendations = "The model cannot identify this disease. Please try uploading a clearer image of the affected plant area, or consult with an agricultural expert for detailed analysis.";
       } else {
         // Use Gemini for recommendations only
         try {
@@ -154,7 +154,7 @@ export const useOptimizedDiseaseAnalysis = () => {
             },
             body: JSON.stringify({
               predictedClass,
-              accuracy: accuracyPercent
+              accuracy: parseFloat(accuracyPercent.toFixed(2))
             })
           });
 
@@ -162,7 +162,8 @@ export const useOptimizedDiseaseAnalysis = () => {
             const data = await response.json();
             recommendations = data.recommendations;
           } else {
-            recommendations = "Unable to fetch detailed recommendations at the moment.";
+            console.error("Gemini API response error:", response.status, await response.text());
+            recommendations = "Unable to fetch detailed recommendations at the moment. Please consult with an agricultural expert.";
           }
         } catch (geminiError) {
           console.error("Gemini API error:", geminiError);
@@ -180,7 +181,7 @@ export const useOptimizedDiseaseAnalysis = () => {
       
       toast({
         title: "Analysis Complete",
-        description: `Detection completed with ${accuracyPercent}% confidence`,
+        description: `Detection: ${predictedClass} with ${accuracyPercent.toFixed(2)}% confidence`,
       });
 
     } catch (error) {

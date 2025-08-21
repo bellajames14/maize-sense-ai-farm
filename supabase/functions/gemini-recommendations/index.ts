@@ -23,17 +23,15 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
-    const prompt = `You are an expert agronomist specializing in maize disease management.
-A machine learning model predicted: ${predictedClass} with ${accuracy}% confidence.
+    const prompt = `As an agronomist, the maize disease detection model predicts ${predictedClass} with ${accuracy}% accuracy. Please provide prevention tips, treatment recommendations, and farmer-friendly advice.
 
-Provide farmer-friendly advice in exactly this format:
+Please respond in simple, clear language that farmers and agriculture students can easily understand. Avoid scientific jargon and focus on practical, actionable advice including:
+- What this means for the farmer
+- Immediate prevention steps  
+- Treatment options with specific product names when possible
+- General care recommendations
 
-**Confirmation:** Brief statement about the detected condition
-**Prevention:** 3-4 immediate actions to prevent spread  
-**Treatment:** Specific treatments available
-**Recommendations:** General care tips
-
-Keep responses practical, clear, and actionable for farmers. Use simple language.`
+Keep it concise and practical.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
