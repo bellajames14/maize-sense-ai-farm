@@ -1,167 +1,120 @@
 import React from 'react';
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from '../diseaseUtils';
-import { loadOptimizedModel } from './optimizedModelLoader';
-import { preprocessImageForAccuracy, validatePreprocessing } from './precisionImageProcessor';
 
 export interface PredictionResult {
   diseaseName: string;
   confidence: number;
-  rawPredictions: number[];
   processingStats: {
-    preprocessingValid: boolean;
-    predictionSum: number;
-    topThreePredictions: Array<{ disease: string; confidence: number; }>;
+    preprocessingTime: number;
+    predictionTime: number;
+    totalTime: number;
   };
 }
 
-// Enhanced prediction with accuracy optimizations
+// Simple and reliable model loading
+const loadModel = async (): Promise<tf.LayersModel> => {
+  const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model_v1/model.json';
+  
+  console.log('Loading model from:', MODEL_URL);
+  
+  // Set up TensorFlow backend
+  await tf.setBackend('webgl');
+  await tf.ready();
+  
+  const model = await tf.loadLayersModel(MODEL_URL);
+  console.log('Model loaded successfully');
+  console.log('Input shape:', model.inputs[0].shape);
+  console.log('Output shape:', model.outputs[0].shape);
+  
+  return model;
+};
+
+// Simple preprocessing (based on user's provided code)
+function preprocessImage(img: HTMLImageElement, imgSize: [number, number] = [224, 224]) {
+  return tf.tidy(() => {
+    let tensor = tf.browser.fromPixels(img)       // convert <img> to tensor
+      .toFloat()
+      .resizeBilinear(imgSize)                    // resize to IMG_SIZE
+      .div(255.0)                                 // normalize [0,1]
+      .expandDims(0);                             // add batch dim [1, h, w, 3]
+    return tensor;
+  });
+}
+
+// Simple inference (based on user's provided code)
+async function inferTFJS(model: tf.LayersModel, imgTensor: tf.Tensor) {
+  const predictions = model.predict(imgTensor) as tf.Tensor;  // forward pass
+  let probs = await predictions.data();            // get raw values
+  let sum = Array.from(probs).reduce((a, b) => a + b, 0);
+
+  // If probs don't sum to ~1, apply softmax
+  if (sum <= 0 || sum > 1.0001) {
+    const probsArray = Array.from(probs);
+    const maxProb = Math.max(...probsArray);
+    const exp = probsArray.map(p => Math.exp(p - maxProb));
+    const expSum = exp.reduce((a, b) => a + b, 0);
+    probs = new Float32Array(exp.map(v => v / expSum));
+  }
+
+  return Array.from(probs);
+}
+
+// Enhanced prediction using the user's reliable approach
 export const predictDiseaseWithAccuracy = async (imageElement: HTMLImageElement): Promise<PredictionResult> => {
-  console.log('Starting enhanced disease prediction...');
+  const startTime = performance.now();
   
   try {
-    // Load optimized model
-    const model = await loadOptimizedModel();
-    console.log('Model loaded for prediction');
+    console.log('=== Starting Disease Prediction ===');
     
-    // Preprocess with high precision
-    const preprocessedImage = await preprocessImageForAccuracy(imageElement);
+    // Load model
+    const model = await loadModel();
     
-    // Validate preprocessing
-    const preprocessingValid = validatePreprocessing(preprocessedImage);
+    // Preprocess image
+    const preprocessStart = performance.now();
+    const processedTensor = preprocessImage(imageElement);
+    const preprocessEnd = performance.now();
     
-    console.log('Running inference with optimized model...');
+    console.log('Image preprocessed successfully');
     
-    // Get raw predictions
-    const predictions = model.predict(preprocessedImage) as tf.Tensor;
-    const predictionArray = await predictions.data();
-    const predictionList = Array.from(predictionArray);
+    // Run inference
+    const predictionStart = performance.now();
+    const probabilities = await inferTFJS(model, processedTensor);
+    const predictionEnd = performance.now();
     
-    console.log('Raw predictions:', predictionList.map(p => p.toFixed(4)));
+    console.log('Raw prediction probabilities:', probabilities);
     
-    // Apply softmax if not already applied (ensure proper probability distribution)
-    const softmaxPredictions = tf.tidy(() => {
-      const logits = tf.tensor1d(predictionList);
-      const softmax = tf.softmax(logits);
-      return softmax.dataSync();
-    });
-    
-    const softmaxList = Array.from(softmaxPredictions);
-    console.log('Softmax predictions:', softmaxList.map(p => p.toFixed(4)));
-    
-    // Calculate prediction sum for validation
-    const predictionSum = softmaxList.reduce((sum, val) => sum + val, 0);
-    console.log('Prediction sum (should be ~1.0):', predictionSum.toFixed(4));
-    
-    // Find the prediction with highest confidence
-    const maxIndex = softmaxList.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
-    const maxConfidence = softmaxList[maxIndex];
+    // Find best prediction
+    const maxIndex = probabilities.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
+    const maxProb = probabilities[maxIndex];
     
     // Get disease name
     const diseaseName = knownDiseases[maxIndex] || "Unknown";
-    const confidence = maxConfidence * 100;
+    const confidence = maxProb * 100;
     
-    // Generate top 3 predictions for analysis
-    const topThreePredictions = softmaxList
-      .map((conf, index) => ({
-        disease: knownDiseases[index] || `Unknown_${index}`,
-        confidence: conf * 100
-      }))
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 3);
+    console.log(`Prediction: ${diseaseName} with ${confidence.toFixed(2)}% confidence`);
     
-    console.log('Top 3 predictions:');
-    topThreePredictions.forEach((pred, i) => {
-      console.log(`  ${i + 1}. ${pred.disease}: ${pred.confidence.toFixed(2)}%`);
-    });
+    // Cleanup
+    processedTensor.dispose();
     
-    // Apply confidence calibration for better accuracy
-    const calibratedConfidence = calibrateConfidence(confidence, diseaseName);
+    const endTime = performance.now();
+    const processingStats = {
+      preprocessingTime: preprocessEnd - preprocessStart,
+      predictionTime: predictionEnd - predictionStart,
+      totalTime: endTime - startTime
+    };
     
-    console.log(`Final prediction: ${diseaseName} with ${calibratedConfidence.toFixed(2)}% confidence`);
-    
-    // Cleanup tensors
-    tf.dispose([preprocessedImage, predictions]);
+    console.log('Processing stats:', processingStats);
+    console.log('=== Disease Prediction Completed ===');
     
     return {
       diseaseName,
-      confidence: calibratedConfidence,
-      rawPredictions: predictionList,
-      processingStats: {
-        preprocessingValid,
-        predictionSum,
-        topThreePredictions
-      }
+      confidence,
+      processingStats
     };
     
   } catch (error) {
-    console.error('Enhanced prediction failed:', error);
+    console.error('Prediction failed:', error);
     throw new Error(`Disease prediction failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-};
-
-// Confidence calibration to match TensorFlow Lite behavior
-const calibrateConfidence = (confidence: number, diseaseName: string): number => {
-  // Apply disease-specific calibration based on empirical observations
-  const calibrationFactors: Record<string, number> = {
-    'Blight': 1.2,           // Boost blight confidence slightly
-    'Common_Rust': 1.1,      // Slightly boost rust detection
-    'Gray_Leaf_Spot': 1.15,  // Boost gray leaf spot
-    'Healthy': 0.95,         // Slightly reduce healthy confidence
-    'maize ear rot': 1.1,
-    'maize fall armyworm': 1.05,
-    'maize stem borer': 1.1
-  };
-  
-  const factor = calibrationFactors[diseaseName] || 1.0;
-  const calibrated = Math.min(confidence * factor, 100); // Cap at 100%
-  
-  console.log(`Confidence calibration: ${confidence.toFixed(2)}% -> ${calibrated.toFixed(2)}% (factor: ${factor})`);
-  
-  return calibrated;
-};
-
-// Alternative prediction method with temperature scaling
-export const predictWithTemperatureScaling = async (imageElement: HTMLImageElement, temperature: number = 1.0): Promise<PredictionResult> => {
-  const model = await loadOptimizedModel();
-  const preprocessedImage = await preprocessImageForAccuracy(imageElement);
-  
-  console.log(`Predicting with temperature scaling (T=${temperature})...`);
-  
-  const predictions = model.predict(preprocessedImage) as tf.Tensor;
-  const logits = await predictions.data();
-  
-  // Apply temperature scaling before softmax
-  const scaledLogits = Array.from(logits).map(logit => logit / temperature);
-  
-  const softmaxPredictions = tf.tidy(() => {
-    const tensor = tf.tensor1d(scaledLogits);
-    return tf.softmax(tensor).dataSync();
-  });
-  
-  const predictionList = Array.from(softmaxPredictions);
-  const maxIndex = predictionList.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
-  
-  const diseaseName = knownDiseases[maxIndex] || "Unknown";
-  const confidence = predictionList[maxIndex] * 100;
-  
-  // Cleanup
-  tf.dispose([preprocessedImage, predictions]);
-  
-  return {
-    diseaseName,
-    confidence,
-    rawPredictions: Array.from(logits),
-    processingStats: {
-      preprocessingValid: true,
-      predictionSum: predictionList.reduce((sum, val) => sum + val, 0),
-      topThreePredictions: predictionList
-        .map((conf, index) => ({
-          disease: knownDiseases[index] || `Unknown_${index}`,
-          confidence: conf * 100
-        }))
-        .sort((a, b) => b.confidence - a.confidence)
-        .slice(0, 3)
-    }
-  };
 };
