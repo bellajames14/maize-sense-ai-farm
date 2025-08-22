@@ -1,3 +1,4 @@
+import React from 'react';
 import * as tf from '@tensorflow/tfjs';
 import { getModelConfig } from './optimizedModelLoader';
 

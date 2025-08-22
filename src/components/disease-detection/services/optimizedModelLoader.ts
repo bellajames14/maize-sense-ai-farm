@@ -1,3 +1,4 @@
+import React from 'react';
 import * as tf from '@tensorflow/tfjs';
 
 // Optimized model configuration for accuracy preservation

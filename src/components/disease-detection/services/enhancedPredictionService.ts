@@ -1,3 +1,4 @@
+import React from 'react';
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from '../diseaseUtils';
 import { loadOptimizedModel } from './optimizedModelLoader';
