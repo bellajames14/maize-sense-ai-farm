@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useFileHandler } from "./useFileHandler";
-import { loadModelWithFallback } from "../services/enhancedModelLoader";
-import { preprocessImage } from "../services/imageProcessor";
+import { loadOptimizedModel } from "../services/optimizedModelLoader";
+import { predictDiseaseWithAccuracy } from "../services/enhancedPredictionService";
 import { knownDiseases } from "../diseaseUtils";
 import * as tf from '@tensorflow/tfjs';
 
@@ -35,10 +35,10 @@ export const useOptimizedDiseaseAnalysis = () => {
   useEffect(() => {
     const initModel = async () => {
       try {
-        console.log("Auto-initializing model...");
-        await loadModelWithFallback(MODEL_URL);
+        console.log("Auto-initializing optimized model...");
+        await loadOptimizedModel();
         setIsModelLoaded(true);
-        console.log("Model auto-initialization successful");
+        console.log("Optimized model auto-initialization successful");
       } catch (error) {
         console.error("Model auto-initialization failed:", error);
         setIsModelLoaded(false);
@@ -50,11 +50,11 @@ export const useOptimizedDiseaseAnalysis = () => {
 
   const initializeModel = async () => {
     try {
-      await loadModelWithFallback(MODEL_URL);
+      await loadOptimizedModel();
       setIsModelLoaded(true);
       toast({
-        title: "Model Ready",
-        description: "Disease detection model loaded successfully",
+        title: "Optimized Model Ready",
+        description: "Enhanced disease detection model loaded successfully",
       });
     } catch (error) {
       console.error("Model initialization failed:", error);
@@ -102,37 +102,20 @@ export const useOptimizedDiseaseAnalysis = () => {
       let accuracyPercent = 0;
 
       try {
-        // Try MobileNetV2 model prediction
-        console.log("Starting MobileNetV2 prediction...");
+        // Use enhanced prediction with accuracy optimizations
+        console.log("Starting enhanced TensorFlow prediction...");
         
-        const model = await loadModelWithFallback(MODEL_URL);
-        const processedImg = await preprocessImage(imageRef.current!);
+        const predictionResult = await predictDiseaseWithAccuracy(imageRef.current!);
         
-        console.log("Running model prediction...");
-        const predictions = await model.predict(processedImg) as tf.Tensor;
-        const predictionArray = await predictions.data();
+        predictedClass = predictionResult.diseaseName;
+        accuracyPercent = predictionResult.confidence;
         
-        console.log("Raw predictions:", Array.from(predictionArray));
-        console.log("Class labels:", knownDiseases);
+        console.log("Enhanced prediction result:", predictionResult);
+        console.log("Processing stats:", predictionResult.processingStats);
+        console.log(`Final prediction: ${predictedClass} with ${accuracyPercent.toFixed(2)}% confidence`);
         
-        // Find highest probability (class with maximum confidence)
-        const maxIndex = Array.from(predictionArray).reduce(
-          (iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 
-          0
-        );
-        
-        const maxProbability = predictionArray[maxIndex];
-        predictedClass = knownDiseases[maxIndex] || "Unknown";
-        
-        // Convert to percentage with 2 decimal places
-        accuracyPercent = Math.round(maxProbability * 10000) / 100;
-        
-        // Cleanup tensors
-        tf.dispose([processedImg, predictions]);
-        
-        console.log(`MobileNetV2 prediction: ${predictedClass} with ${accuracyPercent.toFixed(2)}% confidence`);
       } catch (tfError) {
-        console.error("TensorFlow prediction failed:", tfError);
+        console.error("Enhanced TensorFlow prediction failed:", tfError);
         predictedClass = "Model_Error";
         accuracyPercent = 0;
       }
