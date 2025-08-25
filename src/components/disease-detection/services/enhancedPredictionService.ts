@@ -14,7 +14,7 @@ export interface PredictionResult {
 // Cache the loaded model
 let cachedModel: tf.LayersModel | null = null;
 
-// Simple and reliable model loading with fallback
+// Simple and reliable model loading with proper error handling
 const loadModel = async (): Promise<tf.LayersModel> => {
   if (cachedModel) {
     console.log('Using cached model');
@@ -30,66 +30,42 @@ const loadModel = async (): Promise<tf.LayersModel> => {
     await tf.setBackend('webgl');
     await tf.ready();
     
-    // First check if the model JSON is accessible
-    const response = await fetch(MODEL_URL);
-    if (!response.ok) {
-      throw new Error(`Model file not accessible: ${response.status}`);
-    }
+    // Load model with custom loading options
+    const model = await tf.loadLayersModel(MODEL_URL, {
+      strict: false // Allow loading models with minor configuration issues
+    });
     
-    const modelJson = await response.json();
-    console.log('Model JSON loaded successfully:', modelJson);
-    
-    // Try to load the model
-    const model = await tf.loadLayersModel(MODEL_URL);
     console.log('Model loaded successfully');
     console.log('Input shape:', model.inputs[0].shape);
     console.log('Output shape:', model.outputs[0].shape);
     
+    // Warm up the model with a dummy prediction
+    const dummyInput = tf.zeros([1, 224, 224, 3]);
+    const warmupPrediction = model.predict(dummyInput) as tf.Tensor;
+    await warmupPrediction.data();
+    dummyInput.dispose();
+    warmupPrediction.dispose();
+    
+    console.log('Model warmed up successfully');
+    
     cachedModel = model;
     return model;
   } catch (error) {
-    console.error('Model loading failed, creating fallback model:', error);
+    console.error('Model loading failed:', error);
     
-    // Create a simple fallback model that matches expected behavior
-    const fallbackModel = tf.sequential({
-      layers: [
-        tf.layers.dense({
-          inputShape: [224 * 224 * 3],
-          units: 128,
-          activation: 'relu'
-        }),
-        tf.layers.dense({
-          units: 64,
-          activation: 'relu'
-        }),
-        tf.layers.dense({
-          units: 7, // Number of classes in knownDiseases
-          activation: 'softmax'
-        })
-      ]
-    });
-    
-    console.log('Fallback model created');
-    cachedModel = fallbackModel;
-    return fallbackModel;
+    // Instead of a dummy model, throw the error so we can use Gemini as fallback
+    throw new Error(`Cannot load your trained model: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
-// Simple preprocessing that works with both real and fallback models
+// Simple preprocessing for the actual model
 function preprocessImage(img: HTMLImageElement, imgSize: [number, number] = [224, 224]) {
   return tf.tidy(() => {
     let tensor = tf.browser.fromPixels(img)       // convert <img> to tensor
       .toFloat()
       .resizeBilinear(imgSize)                    // resize to IMG_SIZE
-      .div(255.0);                                // normalize [0,1]
-    
-    // For fallback model, flatten the image
-    if (cachedModel && cachedModel.inputs[0].shape.length === 2) {
-      tensor = tensor.reshape([1, 224 * 224 * 3]);
-    } else {
-      tensor = tensor.expandDims(0);              // add batch dim [1, h, w, 3]
-    }
-    
+      .div(255.0)                                 // normalize [0,1]
+      .expandDims(0);                             // add batch dim [1, h, w, 3]
     return tensor;
   });
 }
