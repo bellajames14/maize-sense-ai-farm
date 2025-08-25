@@ -1,4 +1,3 @@
-import React from 'react';
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from '../diseaseUtils';
 
@@ -12,22 +11,36 @@ export interface PredictionResult {
   };
 }
 
+// Cache the loaded model
+let cachedModel: tf.LayersModel | null = null;
+
 // Simple and reliable model loading
 const loadModel = async (): Promise<tf.LayersModel> => {
+  if (cachedModel) {
+    console.log('Using cached model');
+    return cachedModel;
+  }
+
   const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model_v1/model.json';
   
   console.log('Loading model from:', MODEL_URL);
   
-  // Set up TensorFlow backend
-  await tf.setBackend('webgl');
-  await tf.ready();
-  
-  const model = await tf.loadLayersModel(MODEL_URL);
-  console.log('Model loaded successfully');
-  console.log('Input shape:', model.inputs[0].shape);
-  console.log('Output shape:', model.outputs[0].shape);
-  
-  return model;
+  try {
+    // Set up TensorFlow backend
+    await tf.setBackend('webgl');
+    await tf.ready();
+    
+    const model = await tf.loadLayersModel(MODEL_URL);
+    console.log('Model loaded successfully');
+    console.log('Input shape:', model.inputs[0].shape);
+    console.log('Output shape:', model.outputs[0].shape);
+    
+    cachedModel = model;
+    return model;
+  } catch (error) {
+    console.error('Model loading failed:', error);
+    throw new Error(`Failed to load model: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 
 // Simple preprocessing (based on user's provided code)
@@ -56,6 +69,9 @@ async function inferTFJS(model: tf.LayersModel, imgTensor: tf.Tensor) {
     const expSum = exp.reduce((a, b) => a + b, 0);
     probs = new Float32Array(exp.map(v => v / expSum));
   }
+
+  // Clean up the prediction tensor
+  predictions.dispose();
 
   return Array.from(probs);
 }

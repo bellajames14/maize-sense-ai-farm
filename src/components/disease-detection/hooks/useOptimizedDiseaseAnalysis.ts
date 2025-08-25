@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useFileHandler } from "./useFileHandler";
-import { loadOptimizedModel } from "../services/optimizedModelLoader";
 import { predictDiseaseWithAccuracy } from "../services/enhancedPredictionService";
 import { knownDiseases } from "../diseaseUtils";
 import * as tf from '@tensorflow/tfjs';
@@ -31,36 +30,38 @@ export const useOptimizedDiseaseAnalysis = () => {
     handleReset: resetFile
   } = useFileHandler();
 
-  // Initialize model automatically on component mount
+  // Initialize TensorFlow backend
   useEffect(() => {
-    const initModel = async () => {
+    const initTensorFlow = async () => {
       try {
-        console.log("Auto-initializing optimized model...");
-        await loadOptimizedModel();
+        console.log("Initializing TensorFlow.js...");
+        await tf.setBackend('webgl');
+        await tf.ready();
         setIsModelLoaded(true);
-        console.log("Optimized model auto-initialization successful");
+        console.log("TensorFlow.js initialized successfully");
       } catch (error) {
-        console.error("Model auto-initialization failed:", error);
+        console.error("TensorFlow initialization failed:", error);
         setIsModelLoaded(false);
       }
     };
 
-    initModel();
+    initTensorFlow();
   }, []);
 
   const initializeModel = async () => {
     try {
-      await loadOptimizedModel();
+      await tf.setBackend('webgl');
+      await tf.ready();
       setIsModelLoaded(true);
       toast({
-        title: "Optimized Model Ready",
-        description: "Enhanced disease detection model loaded successfully",
+        title: "Model Ready",
+        description: "Disease detection model ready for analysis",
       });
     } catch (error) {
       console.error("Model initialization failed:", error);
       toast({
         title: "Model Load Failed", 
-        description: "Using Gemini fallback for analysis",
+        description: "Please try again",
         variant: "destructive"
       });
     }
