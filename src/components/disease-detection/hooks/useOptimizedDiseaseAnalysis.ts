@@ -146,11 +146,12 @@ export const useOptimizedDiseaseAnalysis = () => {
         }
       }
 
-      // Get Gemini recommendations with exact prompt
+      // Get recommendations based on prediction result
       let recommendations = "";
       
-      if (predictedClass === "Unknown" || predictedClass === "Analysis_Failed") {
-        // Fallback: Use Gemini for full analysis
+      if (predictedClass === "Low_Confidence") {
+        recommendations = "The image is unclear. Please try uploading a clearer or brighter picture of the maize leaf.";
+      } else if (predictedClass === "Unknown" || predictedClass === "Analysis_Failed") {
         recommendations = "The model cannot identify this disease. Please try uploading a clearer image of the affected plant area, or consult with an agricultural expert for detailed analysis.";
       } else {
         // Use Gemini for recommendations only

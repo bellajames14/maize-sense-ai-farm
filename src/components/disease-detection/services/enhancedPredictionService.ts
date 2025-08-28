@@ -14,7 +14,7 @@ export interface PredictionResult {
 // Cache the loaded model
 let cachedModel: tf.LayersModel | null = null;
 
-// Simple and reliable model loading with proper error handling
+// Load model from Supabase URL with proper validation
 const loadModel = async (): Promise<tf.LayersModel> => {
   if (cachedModel) {
     console.log('Using cached model');
@@ -30,16 +30,24 @@ const loadModel = async (): Promise<tf.LayersModel> => {
     await tf.setBackend('webgl');
     await tf.ready();
     
-    // Load model with custom loading options
-    const model = await tf.loadLayersModel(MODEL_URL, {
-      strict: false // Allow loading models with minor configuration issues
-    });
+    // Load model from Supabase
+    const model = await tf.loadLayersModel(MODEL_URL);
     
     console.log('Model loaded successfully');
     console.log('Input shape:', model.inputs[0].shape);
     console.log('Output shape:', model.outputs[0].shape);
     
-    // Warm up the model with a dummy prediction
+    // Verify input shape is (224, 224, 3)
+    const expectedShape = [null, 224, 224, 3]; // null for batch dimension
+    const actualShape = model.inputs[0].shape;
+    
+    if (actualShape[1] !== 224 || actualShape[2] !== 224 || actualShape[3] !== 3) {
+      throw new Error(`Input shape mismatch. Expected [null, 224, 224, 3], got ${JSON.stringify(actualShape)}`);
+    }
+    
+    console.log('Input shape verified: (224, 224, 3)');
+    
+    // Warm up the model
     const dummyInput = tf.zeros([1, 224, 224, 3]);
     const warmupPrediction = model.predict(dummyInput) as tf.Tensor;
     await warmupPrediction.data();
@@ -52,80 +60,80 @@ const loadModel = async (): Promise<tf.LayersModel> => {
     return model;
   } catch (error) {
     console.error('Model loading failed:', error);
-    
-    // Instead of a dummy model, throw the error so we can use Gemini as fallback
-    throw new Error(`Cannot load your trained model: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Cannot load trained model: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
-// Simple preprocessing for the actual model
-function preprocessImage(img: HTMLImageElement, imgSize: [number, number] = [224, 224]) {
+// Preprocess image to (224, 224) and normalize to [0,1]
+function preprocessImage(img: HTMLImageElement): tf.Tensor {
   return tf.tidy(() => {
     let tensor = tf.browser.fromPixels(img)       // convert <img> to tensor
       .toFloat()
-      .resizeBilinear(imgSize)                    // resize to IMG_SIZE
-      .div(255.0)                                 // normalize [0,1]
-      .expandDims(0);                             // add batch dim [1, h, w, 3]
+      .resizeBilinear([224, 224])                 // resize to exactly (224, 224)
+      .div(255.0)                                 // normalize to [0,1]
+      .expandDims(0);                             // add batch dim [1, 224, 224, 3]
+    
+    console.log('Preprocessed tensor shape:', tensor.shape);
     return tensor;
   });
 }
 
-// Simple inference (based on user's provided code)
-async function inferTFJS(model: tf.LayersModel, imgTensor: tf.Tensor) {
+// Run model.predict() and return probabilities
+async function inferTFJS(model: tf.LayersModel, imgTensor: tf.Tensor): Promise<number[]> {
   const predictions = model.predict(imgTensor) as tf.Tensor;  // forward pass
-  let probs = await predictions.data();            // get raw values
-  let sum = Array.from(probs).reduce((a, b) => a + b, 0);
-
-  // If probs don't sum to ~1, apply softmax
-  if (sum <= 0 || sum > 1.0001) {
-    const probsArray = Array.from(probs);
-    const maxProb = Math.max(...probsArray);
-    const exp = probsArray.map(p => Math.exp(p - maxProb));
-    const expSum = exp.reduce((a, b) => a + b, 0);
-    probs = new Float32Array(exp.map(v => v / expSum));
-  }
-
+  const probs = await predictions.data();            // get raw probability values
+  
+  console.log('Raw prediction values:', Array.from(probs));
+  
   // Clean up the prediction tensor
   predictions.dispose();
 
   return Array.from(probs);
 }
 
-// Enhanced prediction using the user's reliable approach
+// Enhanced prediction with confidence threshold handling
 export const predictDiseaseWithAccuracy = async (imageElement: HTMLImageElement): Promise<PredictionResult> => {
   const startTime = performance.now();
   
   try {
     console.log('=== Starting Disease Prediction ===');
     
-    // Load model
+    // Load model from Supabase
     const model = await loadModel();
     
-    // Preprocess image
+    // Preprocess image to (224, 224) and normalize to [0,1]
     const preprocessStart = performance.now();
     const processedTensor = preprocessImage(imageElement);
     const preprocessEnd = performance.now();
     
-    console.log('Image preprocessed successfully');
+    console.log('Image preprocessed to shape:', processedTensor.shape);
     
-    // Run inference
+    // Run model.predict()
     const predictionStart = performance.now();
     const probabilities = await inferTFJS(model, processedTensor);
     const predictionEnd = performance.now();
     
-    console.log('Raw prediction probabilities:', probabilities);
+    console.log('Prediction probabilities:', probabilities);
     
-    // Find best prediction
+    // Find class with highest confidence
     const maxIndex = probabilities.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
     const maxProb = probabilities[maxIndex];
-    
-    // Get disease name
-    const diseaseName = knownDiseases[maxIndex] || "Unknown";
     const confidence = maxProb * 100;
     
-    console.log(`Prediction: ${diseaseName} with ${confidence.toFixed(2)}% confidence`);
+    console.log(`Highest confidence: ${confidence.toFixed(2)}% for class ${maxIndex}`);
     
-    // Cleanup
+    // Handle low confidence (below 50%)
+    let diseaseName: string;
+    if (confidence < 50) {
+      diseaseName = "Low_Confidence";
+      console.log('Confidence below 50%, suggesting clearer image');
+    } else {
+      diseaseName = knownDiseases[maxIndex] || "Unknown";
+    }
+    
+    console.log(`Final prediction: ${diseaseName} with ${confidence.toFixed(2)}% confidence`);
+    
+    // Cleanup tensor
     processedTensor.dispose();
     
     const endTime = performance.now();
