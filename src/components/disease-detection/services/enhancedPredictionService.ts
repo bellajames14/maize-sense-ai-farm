@@ -22,13 +22,17 @@ const loadModel = async (): Promise<tf.LayersModel> => {
   }
 
   console.log('Loading model from local files...');
+  console.log('Attempting to load model from: /model.json');
   
   try {
     // Set up TensorFlow backend
+    console.log('Setting up TensorFlow backend...');
     await tf.setBackend('webgl');
     await tf.ready();
+    console.log('TensorFlow backend ready');
     
     // Load model from public folder
+    console.log('Loading model layers...');
     const model = await tf.loadLayersModel('/model.json');
     
     console.log('Model loaded successfully from local files');

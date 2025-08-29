@@ -21,7 +21,6 @@ export const useOptimizedDiseaseAnalysis = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const MODEL_URL = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model_v1/model.json';
   
   const {
     selectedFile,
@@ -126,7 +125,7 @@ export const useOptimizedDiseaseAnalysis = () => {
           const response = await fetch('https://sfsdfdcdethqjwtjrwpz.supabase.co/functions/v1/upload-image', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmc2RmZGNkZXRocWp3dGpyd3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NzU1NDAsImV4cCI6MjA1OTI1MTU0MH0.o-LLkQhEW7QJhVPyrZKoNYOMHKNIGH_5NWMTnMILqKs`,
             },
             body: formData
           });
@@ -160,7 +159,7 @@ export const useOptimizedDiseaseAnalysis = () => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmc2RmZGNkZXRocWp3dGpyd3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NzU1NDAsImV4cCI6MjA1OTI1MTU0MH0.o-LLkQhEW7QJhVPyrZKoNYOMHKNIGH_5NWMTnMILqKs`,
             },
             body: JSON.stringify({
               predictedClass,
