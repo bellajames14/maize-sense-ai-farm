@@ -14,55 +14,36 @@ export interface PredictionResult {
 // Cache the loaded model
 let cachedModel: tf.LayersModel | null = null;
 
-// Fix model configuration and load from Supabase
+// Load model from local files
 const loadModel = async (): Promise<tf.LayersModel> => {
   if (cachedModel) {
     console.log('Using cached model');
     return cachedModel;
   }
 
-  console.log('Loading and fixing model configuration...');
+  console.log('Loading model from local files...');
   
   try {
     // Set up TensorFlow backend
     await tf.setBackend('webgl');
     await tf.ready();
     
-    // First, try to fetch and fix the model.json configuration
-    const modelConfigUrl = 'https://sfsdfdcdethqjwtjrwpz.supabase.co/storage/v1/object/public/tfjs-models/Maize_disease_model_v1/model.json';
-    const response = await fetch(modelConfigUrl);
-    const modelConfig = await response.json();
+    // Load model from public folder
+    const model = await tf.loadLayersModel('/model.json');
     
-    console.log('Original model config:', modelConfig);
-    
-    // Fix the InputLayer configuration
-    if (modelConfig.config && modelConfig.config.layers) {
-      for (let layer of modelConfig.config.layers) {
-        if (layer.class_name === 'InputLayer' && layer.config) {
-          // Add the missing batchInputShape
-          if (!layer.config.batch_input_shape && !layer.config.input_shape) {
-            layer.config.batch_input_shape = [null, 224, 224, 3];
-            console.log('Fixed InputLayer configuration');
-          }
-        }
-      }
-    }
-    
-    console.log('Fixed model config:', modelConfig);
-    
-    // Create a blob URL for the fixed configuration
-    const fixedConfigBlob = new Blob([JSON.stringify(modelConfig)], { type: 'application/json' });
-    const fixedConfigUrl = URL.createObjectURL(fixedConfigBlob);
-    
-    // Load model with fixed configuration
-    const model = await tf.loadLayersModel(fixedConfigUrl);
-    
-    // Clean up the blob URL
-    URL.revokeObjectURL(fixedConfigUrl);
-    
-    console.log('Model loaded successfully with fixed configuration');
+    console.log('Model loaded successfully from local files');
     console.log('Input shape:', model.inputs[0].shape);
     console.log('Output shape:', model.outputs[0].shape);
+    
+    // Verify input shape is (224, 224, 3)
+    const expectedShape = [null, 224, 224, 3]; // null for batch dimension
+    const actualShape = model.inputs[0].shape;
+    
+    if (actualShape[1] !== 224 || actualShape[2] !== 224 || actualShape[3] !== 3) {
+      throw new Error(`Input shape mismatch. Expected [null, 224, 224, 3], got ${JSON.stringify(actualShape)}`);
+    }
+    
+    console.log('Input shape verified: (224, 224, 3)');
     
     // Warm up the model
     const dummyInput = tf.zeros([1, 224, 224, 3]);
