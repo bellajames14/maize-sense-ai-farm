@@ -1,8 +1,10 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useFileHandler } from "./useFileHandler";
 import { predictDiseaseWithAccuracy } from "../services/enhancedPredictionService";
+import { getLocalRecommendations } from "../services/localRecommendationService";
 import { knownDiseases } from "../diseaseUtils";
 import * as tf from '@tensorflow/tfjs';
 
@@ -98,87 +100,20 @@ export const useOptimizedDiseaseAnalysis = () => {
         }
       });
 
-      let predictedClass = "Unknown";
-      let accuracyPercent = 0;
-
-      try {
-        // Use enhanced prediction with your trained model
-        console.log("Starting TensorFlow prediction with your trained model...");
-        
-        const predictionResult = await predictDiseaseWithAccuracy(imageRef.current!);
-        
-        predictedClass = predictionResult.diseaseName;
-        accuracyPercent = predictionResult.confidence;
-        
-        console.log("TensorFlow prediction result:", predictionResult);
-        console.log("Processing stats:", predictionResult.processingStats);
-        console.log(`Final prediction: ${predictedClass} with ${accuracyPercent.toFixed(2)}% confidence`);
-        
-      } catch (tfError) {
-        console.error("TensorFlow prediction failed, using Gemini vision instead:", tfError);
-        
-        // Use Gemini for full image analysis as fallback
-        try {
-          const formData = new FormData();
-          formData.append('file', selectedFile);
-          
-          const response = await fetch('https://sfsdfdcdethqjwtjrwpz.supabase.co/functions/v1/upload-image', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmc2RmZGNkZXRocWp3dGpyd3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NzU1NDAsImV4cCI6MjA1OTI1MTU0MH0.o-LLkQhEW7QJhVPyrZKoNYOMHKNIGH_5NWMTnMILqKs`,
-            },
-            body: formData
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            predictedClass = data.disease || "Unknown";
-            accuracyPercent = (data.confidence || 0.5) * 100;
-            console.log("Gemini vision analysis result:", data);
-          } else {
-            throw new Error("Gemini analysis failed");
-          }
-        } catch (geminiError) {
-          console.error("Both TensorFlow and Gemini failed:", geminiError);
-          predictedClass = "Analysis_Failed";
-          accuracyPercent = 0;
-        }
-      }
-
-      // Get recommendations based on prediction result
-      let recommendations = "";
+      // Use local TensorFlow prediction
+      console.log("Starting local TensorFlow prediction...");
       
-      if (predictedClass === "Low_Confidence") {
-        recommendations = "The image is unclear. Please try uploading a clearer or brighter picture of the maize leaf.";
-      } else if (predictedClass === "Unknown" || predictedClass === "Analysis_Failed") {
-        recommendations = "The model cannot identify this disease. Please try uploading a clearer image of the affected plant area, or consult with an agricultural expert for detailed analysis.";
-      } else {
-        // Use Gemini for recommendations only
-        try {
-          const response = await fetch('https://sfsdfdcdethqjwtjrwpz.supabase.co/functions/v1/gemini-recommendations', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmc2RmZGNkZXRocWp3dGpyd3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NzU1NDAsImV4cCI6MjA1OTI1MTU0MH0.o-LLkQhEW7QJhVPyrZKoNYOMHKNIGH_5NWMTnMILqKs`,
-            },
-            body: JSON.stringify({
-              predictedClass,
-              accuracy: parseFloat(accuracyPercent.toFixed(2))
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            recommendations = data.recommendations;
-          } else {
-            console.error("Gemini API response error:", response.status, await response.text());
-            recommendations = "Unable to fetch detailed recommendations at the moment. Please consult with an agricultural expert.";
-          }
-        } catch (geminiError) {
-          console.error("Gemini API error:", geminiError);
-          recommendations = "Treatment recommendations temporarily unavailable.";
-        }
-      }
+      const predictionResult = await predictDiseaseWithAccuracy(imageRef.current!);
+      
+      const predictedClass = predictionResult.diseaseName;
+      const accuracyPercent = predictionResult.confidence;
+      
+      console.log("Local prediction result:", predictionResult);
+      console.log("Processing stats:", predictionResult.processingStats);
+      console.log(`Final prediction: ${predictedClass} with ${accuracyPercent.toFixed(2)}% confidence`);
+      
+      // Get local recommendations
+      const recommendations = getLocalRecommendations(predictedClass, accuracyPercent);
 
       const result: OptimizedAnalysisResult = {
         disease: predictedClass,

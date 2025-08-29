@@ -1,3 +1,4 @@
+
 import * as tf from '@tensorflow/tfjs';
 import { knownDiseases } from '../diseaseUtils';
 
@@ -14,14 +15,14 @@ export interface PredictionResult {
 // Cache the loaded model
 let cachedModel: tf.LayersModel | null = null;
 
-// Load model from local files
+// Load model from local public folder
 const loadModel = async (): Promise<tf.LayersModel> => {
   if (cachedModel) {
     console.log('Using cached model');
     return cachedModel;
   }
 
-  console.log('Loading model from local files...');
+  console.log('Loading model from local public folder...');
   console.log('Attempting to load model from: /model.json');
   
   try {
@@ -31,8 +32,8 @@ const loadModel = async (): Promise<tf.LayersModel> => {
     await tf.ready();
     console.log('TensorFlow backend ready');
     
-    // Load model from public folder
-    console.log('Loading model layers...');
+    // Load model from public folder - this will automatically load the .bin files
+    console.log('Loading model layers from public folder...');
     const model = await tf.loadLayersModel('/model.json');
     
     console.log('Model loaded successfully from local files');
@@ -62,7 +63,7 @@ const loadModel = async (): Promise<tf.LayersModel> => {
     return model;
   } catch (error) {
     console.error('Model loading failed:', error);
-    throw new Error(`Cannot load trained model: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Cannot load trained model from public folder: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
@@ -100,7 +101,7 @@ export const predictDiseaseWithAccuracy = async (imageElement: HTMLImageElement)
   try {
     console.log('=== Starting Disease Prediction ===');
     
-    // Load model from Supabase
+    // Load model from public folder
     const model = await loadModel();
     
     // Preprocess image to (224, 224) and normalize to [0,1]
