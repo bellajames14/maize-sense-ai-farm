@@ -1,11 +1,5 @@
 
-// Re-export all TensorFlow services from a single entry point
-import { loadModel } from './modelLoader';
-import { preprocessImage } from './imageProcessor';
-import { predictDisease } from './predictionService';
-
-export {
-  loadModel,
-  preprocessImage,
-  predictDisease
-};
+// Re-export new local TensorFlow services
+export { loadLocalModel } from './localModelLoader';
+export { preprocessImageForModel } from './imagePreprocessor';
+export { predictDiseaseLocal, type PredictionResult } from './localPredictionService';

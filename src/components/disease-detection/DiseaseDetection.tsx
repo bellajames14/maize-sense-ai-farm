@@ -2,8 +2,8 @@
 import React, { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageUploader } from "./ImageUploader";
-import { OptimizedAnalysisResults } from "./OptimizedAnalysisResults";
-import { useOptimizedDiseaseAnalysis } from "./hooks/useOptimizedDiseaseAnalysis";
+import { AnalysisResults } from "./AnalysisResults";
+import { useDiseaseDetection } from "./hooks/useDiseaseDetection";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
 import { Button } from "@/components/ui/button";
@@ -16,15 +16,13 @@ export const DiseaseDetection = () => {
     selectedFile,
     previewUrl,
     isAnalyzing,
-    analysisResult,
-    analysisError,
-    isModelLoaded,
+    result,
+    error,
     imageRef,
     handleFileChange,
     handleAnalyze,
-    handleReset,
-    initializeModel
-  } = useOptimizedDiseaseAnalysis();
+    handleReset
+  } = useDiseaseDetection();
 
   return (
     <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
@@ -44,7 +42,7 @@ export const DiseaseDetection = () => {
             onFileChange={handleFileChange}
             onAnalyze={handleAnalyze}
             onReset={handleReset}
-            isModelLoaded={true}
+            isModelLoaded={!error}
           />
           
           <img 
@@ -61,18 +59,18 @@ export const DiseaseDetection = () => {
         <CardHeader>
           <CardTitle>{translate("Analysis Results")}</CardTitle>
           <CardDescription>
-            {analysisResult 
+            {result 
               ? translate("Disease detection results and treatment recommendations")
-              : analysisError
+              : error
                 ? translate("Analysis error")
                 : translate("Upload and analyze an image to see results")}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <OptimizedAnalysisResults
+          <AnalysisResults
             isAnalyzing={isAnalyzing}
-            analysisResult={analysisResult}
-            analysisError={analysisError}
+            result={result}
+            error={error}
             onReset={handleReset}
           />
         </CardContent>
