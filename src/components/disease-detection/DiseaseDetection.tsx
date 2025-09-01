@@ -18,7 +18,6 @@ export const DiseaseDetection = () => {
     isAnalyzing,
     result,
     error,
-    imageRef,
     handleFileChange,
     handleAnalyze,
     handleReset
@@ -42,15 +41,7 @@ export const DiseaseDetection = () => {
             onFileChange={handleFileChange}
             onAnalyze={handleAnalyze}
             onReset={handleReset}
-            isModelLoaded={!error}
-          />
-          
-          <img 
-            ref={imageRef}
-            src={previewUrl || ''}
-            className="hidden"
-            alt="Hidden"
-            crossOrigin="anonymous"
+            isModelLoaded={true}
           />
         </CardContent>
       </Card>

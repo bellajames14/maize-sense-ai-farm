@@ -1,11 +1,5 @@
-import { useState, useRef } from 'react';
-import { predictDiseaseLocal, PredictionResult } from '../services/localPredictionService';
-import { getGeminiRecommendations, GeminiRecommendation } from '../services/geminiRecommendationService';
-
-export interface DiseaseDetectionResult {
-  prediction: PredictionResult;
-  recommendations: GeminiRecommendation;
-}
+import { useState } from 'react';
+import { analyzeImageWithGemini, DiseaseDetectionResult } from '../services/geminiDiseaseService';
 
 export const useDiseaseDetection = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -13,7 +7,6 @@ export const useDiseaseDetection = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<DiseaseDetectionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
 
   const handleFileChange = (file: File | null) => {
     if (file) {
@@ -30,7 +23,7 @@ export const useDiseaseDetection = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile || !previewUrl || !imageRef.current) {
+    if (!selectedFile) {
       setError("Please select an image first");
       return;
     }
@@ -40,29 +33,10 @@ export const useDiseaseDetection = () => {
     setResult(null);
 
     try {
-      // Load image into the image element
-      await new Promise<void>((resolve, reject) => {
-        if (imageRef.current) {
-          imageRef.current.onload = () => resolve();
-          imageRef.current.onerror = () => reject(new Error("Failed to load image"));
-          imageRef.current.src = previewUrl;
-        }
-      });
-
-      console.log("Starting disease detection analysis");
-      
-      // Step 1: Get prediction from local TensorFlow.js model
-      const prediction = await predictDiseaseLocal(imageRef.current);
-      console.log("Prediction completed:", prediction);
-      
-      // Step 2: Get recommendations from Gemini API
-      const recommendations = await getGeminiRecommendations(prediction);
-      console.log("Recommendations received:", recommendations);
-      
-      setResult({
-        prediction,
-        recommendations
-      });
+      console.log("Starting Gemini disease analysis");
+      const analysisResult = await analyzeImageWithGemini(selectedFile);
+      console.log("Analysis completed:", analysisResult);
+      setResult(analysisResult);
     } catch (err) {
       console.error("Disease detection error:", err);
       setError(err instanceof Error ? err.message : "Analysis failed");
@@ -84,7 +58,6 @@ export const useDiseaseDetection = () => {
     isAnalyzing,
     result,
     error,
-    imageRef,
     handleFileChange,
     handleAnalyze,
     handleReset

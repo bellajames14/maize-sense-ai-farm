@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, CheckCircle, RotateCcw } from "lucide-react";
 import { usePreferences } from "@/hooks/usePreferences";
-import { DiseaseDetectionResult } from "./hooks/useDiseaseDetection";
+import { DiseaseDetectionResult } from "./services/geminiDiseaseService";
 
 interface AnalysisResultsProps {
   isAnalyzing: boolean;
@@ -14,7 +14,7 @@ interface AnalysisResultsProps {
 }
 
 export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: AnalysisResultsProps) => {
-  const { t } = usePreferences();
+  const { translate } = usePreferences();
 
   // Error state
   if (error) {
@@ -23,14 +23,14 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertCircle className="h-5 w-5" />
-            {t("Analysis Error")}
+            {translate("Analysis Error")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">{error}</p>
           <Button onClick={onReset} variant="outline" className="w-full">
             <RotateCcw className="h-4 w-4 mr-2" />
-            {t("Try Again")}
+            {translate("Try Again")}
           </Button>
         </CardContent>
       </Card>
@@ -42,7 +42,7 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle>{t("Analyzing your image...")}</CardTitle>
+          <CardTitle>{translate("Analyzing your image...")}</CardTitle>
           <CardDescription>
             Processing your maize plant image for disease detection
           </CardDescription>
@@ -62,14 +62,14 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle>{t("Analysis Results")}</CardTitle>
+          <CardTitle>{translate("Analysis Results")}</CardTitle>
           <CardDescription>
-            {t("Disease detection results and treatment recommendations")}
+            {translate("Disease detection results and treatment recommendations")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-8">
-            {t("Upload an image and click Analyze to get started")}
+            {translate("Upload an image and click Analyze to get started")}
           </p>
         </CardContent>
       </Card>
@@ -77,8 +77,7 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
   }
 
   // Results state
-  const { prediction, recommendations } = result;
-  const isHealthy = prediction.diseaseName.toLowerCase().includes('healthy');
+  const isHealthy = result.disease.toLowerCase().includes('healthy');
 
   return (
     <Card className="h-full">
@@ -89,7 +88,7 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
           ) : (
             <AlertCircle className="h-5 w-5 text-orange-500" />
           )}
-          {t("Analysis Results")}
+          {translate("Analysis Results")}
         </CardTitle>
         <CardDescription>
           Disease detection and treatment recommendations
@@ -99,16 +98,16 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
         {/* Prediction Results */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-medium">{t("Detected Disease")}</span>
+            <span className="font-medium">{translate("Detected Disease")}</span>
             <Badge variant={isHealthy ? "secondary" : "destructive"}>
-              {prediction.diseaseName}
+              {result.disease}
             </Badge>
           </div>
           
           <div className="flex items-center justify-between">
-            <span className="font-medium">{t("Confidence")}</span>
+            <span className="font-medium">{translate("Confidence")}</span>
             <Badge variant="outline">
-              {prediction.confidence.toFixed(1)}%
+              {result.confidence.toFixed(1)}%
             </Badge>
           </div>
         </div>
@@ -119,17 +118,17 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
         <div className="space-y-4">
           <h4 className="font-medium text-sm">Prevention Tips</h4>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {recommendations.prevention}
+            {result.prevention}
           </p>
 
           <h4 className="font-medium text-sm">Treatment Recommendations</h4>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {recommendations.treatment}
+            {result.treatment}
           </p>
 
           <h4 className="font-medium text-sm">Additional Recommendations</h4>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {recommendations.recommendations}
+            {result.recommendations}
           </p>
         </div>
 
@@ -139,7 +138,7 @@ export const AnalysisResults = ({ isAnalyzing, result, error, onReset }: Analysi
         <div className="flex gap-2">
           <Button onClick={onReset} variant="outline" className="flex-1">
             <RotateCcw className="h-4 w-4 mr-2" />
-            {t("Reset")}
+            {translate("Reset")}
           </Button>
         </div>
       </CardContent>
