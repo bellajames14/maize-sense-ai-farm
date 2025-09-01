@@ -23,7 +23,7 @@ export const analyzeImageWithGemini = async (imageFile: File): Promise<DiseaseDe
     // Convert file to base64
     const base64Image = await fileToBase64(imageFile);
     
-    const response = await fetch('/functions/v1/gemini-recommendations', {
+    const response = await fetch('https://sfsdfdcdethqjwtjrwpz.supabase.co/functions/v1/gemini-recommendations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
